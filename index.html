@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1117">
+<title>DeepSeek Balance</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='192' height='192'><rect width='192' height='192' rx='40' fill='%230d1117'/><text x='96' y='120' text-anchor='middle' font-size='90' fill='%234f8cff'>💰</text></svg>">
+<style>
+:root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+    --border: #30363d; --text: #e6edf3; --text2: #8b949e;
+    --accent: #4f8cff; --green: #3fb950; --red: #f85149; --orange: #d2991d;
+    --radius: 16px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+}
+.header {
+    padding: 16px 20px; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px;
+    flex-shrink: 0;
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.logo {
+    width: 36px; height: 36px; background: var(--accent);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 20px;
+}
+.header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+.header-actions { display: flex; gap: 8px; }
+.icon-btn {
+    width: 40px; height: 40px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text2); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; position: relative;
+}
+.icon-btn:active { transform: scale(0.94); background: var(--surface2); }
+.main { flex: 1; padding: 0 16px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.balance-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+    position: relative; overflow: hidden;
+}
+.balance-card::before {
+    content: ''; position: absolute; top: -50%; right: -30%;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(79,140,255,0.08) 0%, transparent 70%);
+    border-radius: 50%; pointer-events: none;
+}
+.balance-label { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.balance-amount { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; position: relative; z-index: 1; }
+.balance-currency { font-size: 20px; font-weight: 500; color: var(--text2); margin-left: 4px; }
+.balance-details { display: flex; gap: 16px; margin-top: 16px; position: relative; z-index: 1; }
+.balance-detail-item { flex: 1; background: var(--surface2); border-radius: 10px; padding: 12px; }
+.detail-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+.detail-value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+
+.status-row { display: flex; gap: 12px; }
+.status-card {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; text-align: center;
+    cursor: pointer; transition: all 0.15s;
+}
+.status-card:active { transform: scale(0.97); background: var(--surface2); }
+.status-icon { font-size: 28px; margin-bottom: 4px; }
+.status-value { font-size: 22px; font-weight: 700; }
+.status-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.status-available { color: var(--green); }
+.status-unavailable { color: var(--red); }
+
+.timer-section { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 0; color: var(--text2); font-size: 13px; }
+.timer-ring { position: relative; width: 28px; height: 28px; }
+.timer-ring svg { transform: rotate(-90deg); }
+.timer-ring .bg { fill: none; stroke: var(--surface2); stroke-width: 3; }
+.timer-ring .progress { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.timer-text { font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; }
+
+/* ── Stats section ─────────────────── */
+.stats-section { display: flex; flex-direction: column; gap: 16px; }
+.stats-divider {
+    height: 1px; background: var(--border); margin: 4px 0;
+    position: relative; text-align: center;
+}
+.stats-divider span {
+    position: relative; top: -10px; background: var(--bg);
+    padding: 0 12px; color: var(--text2); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+
+.time-toggles { display: flex; gap: 6px; justify-content: center; }
+.time-toggle {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text2); font-size: 12px;
+    cursor: pointer; transition: all 0.15s; font-weight: 500;
+}
+.time-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.time-toggle:active { transform: scale(0.95); }
+
+.cost-summary { display: flex; gap: 10px; }
+.cost-card {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px; text-align: center;
+}
+.cost-card .cost-amount { font-size: 20px; font-weight: 800; color: var(--accent); }
+.cost-card .cost-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+.chart-container {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+}
+.chart-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+.chart-wrap { position: relative; width: 100%; height: 200px; }
+.chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+.no-data-hint { text-align: center; color: var(--text2); font-size: 13px; padding: 24px 0; }
+
+.settings-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    z-index: 100; display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.settings-overlay.open { opacity: 1; pointer-events: auto; }
+.settings-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0; width: 100%; max-width: 500px;
+    padding: 24px 20px 32px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.settings-overlay.open .settings-panel { transform: translateY(0); }
+.settings-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+.settings-panel h3 { font-size: 18px; margin-bottom: 16px; }
+.input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.input-group label { font-size: 13px; color: var(--text2); font-weight: 500; }
+.input-row { display: flex; gap: 8px; }
+.input-row input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text);
+    font-size: 15px; font-family: 'SF Mono', 'Fira Code', monospace;
+    outline: none; transition: border-color 0.15s;
+}
+.input-row input:focus { border-color: var(--accent); }
+.btn {
+    padding: 10px 18px; border-radius: 10px; font-size: 14px;
+    font-weight: 600; cursor: pointer; border: none;
+    transition: all 0.15s; white-space: nowrap;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+.btn-sm { padding: 6px 12px; font-size: 11px; border-radius: 6px; }
+
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; gap: 12px; }
+.empty-icon { font-size: 64px; }
+.empty-state h2 { font-size: 20px; }
+.empty-state p { color: var(--text2); font-size: 14px; line-height: 1.5; }
+
+.error-banner {
+    background: rgba(248,81,73,0.12); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 12px; padding: 12px 16px; font-size: 13px; color: var(--red);
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+}
+.error-banner .err-title { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.error-banner .err-body { font-size: 12px; line-height: 1.6; color: var(--text2); }
+
+.loading-spinner {
+    width: 40px; height: 40px; border: 3px solid var(--surface2);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 20px; font-size: 14px;
+    z-index: 200; transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+@media (min-width: 500px) {
+    .main { max-width: 440px; margin: 0 auto; }
+    .header { max-width: 440px; margin: 0 auto; width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left"><div class="logo">💎</div><h1>DeepSeek</h1></div>
+    <div class="header-actions">
+        <button class="icon-btn" id="btnRefresh" title="刷新">🔄</button>
+        <button class="icon-btn" id="btnSettings" title="设置">⚙️</button>
+    </div>
+</header>
+
+<main class="main" id="mainContent"></main>
+
+<div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-panel">
+        <div class="settings-handle"></div>
+        <h3>⚙️ 设置</h3>
+        <div class="input-group">
+            <label>DeepSeek API Key</label>
+            <div class="input-row">
+                <input type="password" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxx" autocomplete="off">
+                <button class="btn btn-primary" id="btnSaveKey">保存</button>
+            </div>
+        </div>
+        <button class="btn btn-danger" id="btnClearKey" style="width:100%;">🗑 清除 API Key</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+const API_URLS = [
+    '/api/balance',
+    'https://api.deepseek.com/user/balance'
+];
+const REFRESH_INTERVAL = 30;
+const STORAGE_KEY = 'deepseek_api_key';
+const HISTORY_KEY = 'deepseek_balance_history';
+const CHECKPOINT_MINUTES = 5;   // record every 5 min
+const MAX_HISTORY_DAYS = 90;
+
+const $main = document.getElementById('mainContent');
+const $overlay = document.getElementById('settingsOverlay');
+const $apiKeyInput = document.getElementById('apiKeyInput');
+const $toast = document.getElementById('toast');
+
+let apiKey = localStorage.getItem(STORAGE_KEY) || '';
+let countdown = REFRESH_INTERVAL;
+let timerInterval = null;
+let data = null;
+let loading = false;
+
+// ── Chart instances (reused across renders) ──
+let chartTrend = null;
+let chartHourly = null;
+let chartDaily = null;
+let chartMonthly = null;
+let trendRange = '24h'; // '24h' | '7d' | '30d'
+
+// ── Toast ────────────────────────────
+let toastTimer;
+function showToast(msg) {
+    clearTimeout(toastTimer);
+    $toast.textContent = msg;
+    $toast.classList.add('show');
+    toastTimer = setTimeout(function() { $toast.classList.remove('show'); }, 2000);
+}
+
+// ── History persistence ──────────────
+function loadHistory() {
+    try {
+        var raw = localStorage.getItem(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+}
+
+function saveHistory(arr) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+
+// Record a data point if the checkpoint interval has passed
+function recordCheckpoint(balanceData) {
+    var info = (balanceData.balance_infos && balanceData.balance_infos.length > 0) ? balanceData.balance_infos[0] : null;
+    if (!info) return;
+    var total = parseFloat(info.total_balance);
+    if (isNaN(total)) return;
+
+    var history = loadHistory();
+    var now = Date.now();
+    var intervalMs = CHECKPOINT_MINUTES * 60 * 1000;
+
+    // Only record if enough time has passed since last checkpoint
+    if (history.length > 0) {
+        var last = history[history.length - 1];
+        if (now - last.t < intervalMs) return;
+    }
+
+    history.push({ t: now, v: total, g: parseFloat(info.granted_balance) || 0, p: parseFloat(info.topped_up_balance) || 0 });
+
+    // Purge old data (> MAX_HISTORY_DAYS)
+    var cutoff = now - MAX_HISTORY_DAYS * 24 * 3600 * 1000;
+    while (history.length > 0 && history[0].t < cutoff) history.shift();
+
+    saveHistory(history);
+}
+
+// ── Cost calculation ─────────────────
+function calcCosts(history) {
+    var now = new Date();
+    var thisHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).getTime();
+    var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    var costHour = 0, costDay = 0, costMonth = 0;
+    var lastVal = null;
+
+    for (var i = 0; i < history.length; i++) {
+        var h = history[i];
+        if (lastVal !== null) {
+            var drop = lastVal - h.v;
+            if (drop > 0) {
+                if (h.t >= thisHourStart) costHour += drop;
+                if (h.t >= todayStart) costDay += drop;
+                if (h.t >= thisMonthStart) costMonth += drop;
+            }
+        }
+        // Reset baseline if balance increased (top-up)
+        if (lastVal !== null && h.v > lastVal) { lastVal = h.v; continue; }
+        lastVal = h.v;
+    }
+    return { hour: costHour, day: costDay, month: costMonth };
+}
+
+// ── Chart builders ───────────────────
+function getTrendData(history, range) {
+    var now = Date.now();
+    var cutoffs = { '24h': now - 86400000, '7d': now - 604800000, '30d': now - 2592000000 };
+    var cutoff = cutoffs[range] || cutoffs['24h'];
+    var filtered = history.filter(function(h) { return h.t >= cutoff; });
+    var labels = [], values = [];
+    for (var i = 0; i < filtered.length; i++) {
+        var d = new Date(filtered[i].t);
+        if (range === '24h') labels.push(pad(d.getHours()) + ':' + pad(d.getMinutes()));
+        else if (range === '7d') labels.push((d.getMonth() + 1) + '/' + d.getDate());
+        else labels.push((d.getMonth() + 1) + '/' + d.getDate());
+        values.push(filtered[i].v);
+    }
+    return { labels: labels, values: values };
+}
+
+function getBarData(history, groupBy) {
+    // groupBy: 'hour' | 'day' | 'month'
+    var now = Date.now();
+    var groups = {};
+    var lastVal = null, lastT = 0;
+
+    for (var i = 0; i < history.length; i++) {
+        var h = history[i];
+        if (lastVal !== null) {
+            var drop = lastVal - h.v;
+            if (drop > 0) {
+                var key;
+                var d = new Date(h.t);
+                if (groupBy === 'hour') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours());
+                else if (groupBy === 'day') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+                else key = d.getFullYear() + '-' + pad(d.getMonth()+1);
+                groups[key] = (groups[key] || 0) + drop;
+            }
+        }
+        if (lastVal === null || h.v <= lastVal) { lastVal = h.v; lastT = h.t; }
+        else { lastVal = h.v; } // top-up: reset baseline
+    }
+
+    var keys = Object.keys(groups).sort();
+    var labels, values;
+
+    // Limit display range
+    if (groupBy === 'hour') {
+        keys = keys.slice(-24);
+        labels = keys.map(function(k) { var parts = k.split(' '); return parts[1] ? parts[1] + ':00' : k; });
+    } else if (groupBy === 'day') {
+        keys = keys.slice(-14);
+        labels = keys.map(function(k) { var parts = k.split('-'); return parts[1] + '/' + parts[2]; });
+    } else {
+        keys = keys.slice(-12);
+        labels = keys.map(function(k) { var parts = k.split('-'); return parts[0].slice(2) + '/' + parts[1]; });
+    }
+    values = keys.map(function(k) { return groups[k]; });
+
+    return { labels: labels, values: values };
+}
+
+function destroyCharts() {
+    if (chartTrend) { chartTrend.destroy(); chartTrend = null; }
+    if (chartHourly) { chartHourly.destroy(); chartHourly = null; }
+    if (chartDaily) { chartDaily.destroy(); chartDaily = null; }
+    if (chartMonthly) { chartMonthly.destroy(); chartMonthly = null; }
+}
+
+function renderCharts(history) {
+    destroyCharts();
+    if (history.length < 2) return;
+
+    // ── Trend line chart ──────────────
+    var td = getTrendData(history, trendRange);
+    var ctxT = document.getElementById('chartTrend');
+    if (ctxT) {
+        chartTrend = new Chart(ctxT, {
+            type: 'line',
+            data: {
+                labels: td.labels,
+                datasets: [{
+                    label: '余额',
+                    data: td.values,
+                    borderColor: '#4f8cff',
+                    backgroundColor: 'rgba(79,140,255,0.08)',
+                    fill: true,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHitRadius: 8,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#8b949e', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: '#21262d' } },
+                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                },
+                interaction: { intersect: false, mode: 'index' }
+            }
+        });
+    }
+
+    // ── Hourly bar chart ──────────────
+    var hd = getBarData(history, 'hour');
+    var ctxH = document.getElementById('chartHourly');
+    if (ctxH && hd.labels.length > 0) {
+        chartHourly = new Chart(ctxH, {
+            type: 'bar',
+            data: {
+                labels: hd.labels,
+                datasets: [{ data: hd.values, backgroundColor: 'rgba(79,140,255,0.6)', borderRadius: 4 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 12 }, grid: { display: false } },
+                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                }
+            }
+        });
+    }
+
+    // ── Daily bar chart ───────────────
+    var dd = getBarData(history, 'day');
+    var ctxD = document.getElementById('chartDaily');
+    if (ctxD && dd.labels.length > 0) {
+        chartDaily = new Chart(ctxD, {
+            type: 'bar',
+            data: {
+                labels: dd.labels,
+                datasets: [{ data: dd.values, backgroundColor: 'rgba(63,185,80,0.6)', borderRadius: 4 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                }
+            }
+        });
+    }
+
+    // ── Monthly bar chart ─────────────
+    var md = getBarData(history, 'month');
+    var ctxM = document.getElementById('chartMonthly');
+    if (ctxM && md.labels.length > 0) {
+        chartMonthly = new Chart(ctxM, {
+            type: 'bar',
+            data: {
+                labels: md.labels,
+                datasets: [{ data: md.values, backgroundColor: 'rgba(210,153,29,0.6)', borderRadius: 4 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                }
+            }
+        });
+    }
+}
+
+function renderStatsHTML(history) {
+    var costs = calcCosts(history);
+    var hasData = history.length >= 2;
+
+    return '<div class="stats-divider"><span>📊 费用统计</span></div>' +
+        '<div class="cost-summary">' +
+        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.hour.toFixed(2) : '--') + '</div><div class="cost-label">本小时花费</div></div>' +
+        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.day.toFixed(2) : '--') + '</div><div class="cost-label">今天花费</div></div>' +
+        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.month.toFixed(2) : '--') + '</div><div class="cost-label">本月花费</div></div>' +
+        '</div>' +
+
+        // Trend chart
+        '<div class="chart-container">' +
+        '<div class="chart-title">📈 余额变化趋势</div>' +
+        '<div class="time-toggles">' +
+        '<button class="time-toggle' + (trendRange === '24h' ? ' active' : '') + '" data-range="24h">24小时</button>' +
+        '<button class="time-toggle' + (trendRange === '7d' ? ' active' : '') + '" data-range="7d">7天</button>' +
+        '<button class="time-toggle' + (trendRange === '30d' ? ' active' : '') + '" data-range="30d">30天</button>' +
+        '</div>' +
+        (hasData ? '<div class="chart-wrap"><canvas id="chartTrend"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
+        '</div>' +
+
+        // Hourly bar
+        '<div class="chart-container">' +
+        '<div class="chart-title">📊 按小时费用</div>' +
+        (hasData ? '<div class="chart-wrap"><canvas id="chartHourly"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
+        '</div>' +
+
+        // Daily bar
+        '<div class="chart-container">' +
+        '<div class="chart-title">📊 按天费用</div>' +
+        (hasData ? '<div class="chart-wrap"><canvas id="chartDaily"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
+        '</div>' +
+
+        // Monthly bar
+        '<div class="chart-container">' +
+        '<div class="chart-title">📊 按月费用</div>' +
+        (hasData ? '<div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
+        '</div>';
+}
+
+// ── API fetch ────────────────────────
+async function fetchBalance() {
+    if (!apiKey) return null;
+    var headers = { 'Accept': 'application/json', 'Authorization': 'Bearer ' + apiKey };
+    var lastErr;
+    for (var i = 0; i < API_URLS.length; i++) {
+        try {
+            var resp = await fetch(API_URLS[i], { headers: headers });
+            if (!resp.ok) {
+                var body = await resp.text();
+                var msg = '';
+                try { var j = JSON.parse(body); msg = j.error ? j.error.message || '' : ''; } catch(e) {}
+                var err = new Error(msg || 'HTTP ' + resp.status);
+                err.status = resp.status;
+                throw err;
+            }
+            return resp.json();
+        } catch(e) {
+            lastErr = e;
+            var isNetErr = e.name === 'TypeError' || (e.message || '').indexOf('Failed to fetch') >= 0;
+            if (isNetErr && i < API_URLS.length - 1) continue;
+            if (!isNetErr) throw e;
+        }
+    }
+    throw lastErr || new Error('All endpoints unreachable');
+}
+
+// ── Render ───────────────────────────
+function renderLoading() {
+    $main.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div><p style="color:var(--text2);margin-top:12px;">正在查询余额…</p></div>';
+}
+
+function renderNoKey() {
+    $main.innerHTML = '<div class="empty-state"><div class="empty-icon">🔑</div><h2>设置 API Key</h2><p>请输入 DeepSeek API Key 查询余额。<br>在 <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--accent);">DeepSeek 控制台</a> 创建 Key。</p><button class="btn btn-primary" id="btnGoSettings" style="margin-top:8px;">⚙️ 设置 API Key</button></div>';
+    document.getElementById('btnGoSettings').addEventListener('click', function() {
+        $overlay.classList.add('open'); $apiKeyInput.focus();
+    });
+}
+
+function renderError(msg, status) {
+    destroyCharts();
+    var isAuth = status === 401;
+    $main.innerHTML =
+        '<div class="error-banner" style="margin-bottom:12px;">' +
+        '<div class="err-title"><span>' + (isAuth ? '🔐' : '⚠️') + '</span><span>' + (isAuth ? '认证失败' : '请求失败') + '</span></div>' +
+        '<div class="err-body">' + esc(msg) + '</div>' +
+        (isAuth ? '<button class="btn btn-primary" id="btnReSettings" style="margin-top:4px;font-size:12px;">⚙️ 重新设置 Key</button>' : '') +
+        '</div>' +
+        '<div class="balance-card" style="opacity:0.4;">' +
+        '<div class="balance-label">总余额</div><div class="balance-amount" style="color:var(--text2);">--</div>' +
+        '<div class="balance-details"><div class="balance-detail-item"><div class="detail-label">🎁 赠送余额</div><div class="detail-value">--</div></div><div class="balance-detail-item"><div class="detail-label">💳 充值余额</div><div class="detail-value">--</div></div></div>' +
+        '</div>' +
+        '<div class="status-row">' +
+        '<div class="status-card" id="cardRetry"><div class="status-icon">🔁</div><div class="status-value" style="font-size:15px;">重试</div><div class="status-label">点此重试</div></div>' +
+        '<div class="status-card" id="cardSettings"><div class="status-icon">⚙️</div><div class="status-value" style="font-size:15px;">设置</div><div class="status-label">检查 Key</div></div>' +
+        '</div>';
+    document.getElementById('cardRetry').addEventListener('click', refresh);
+    document.getElementById('cardSettings').addEventListener('click', function() { $overlay.classList.add('open'); });
+    if (isAuth) {
+        document.getElementById('btnReSettings').addEventListener('click', function() {
+            $overlay.classList.add('open'); $apiKeyInput.focus();
+        });
+    }
+}
+
+function renderData(d) {
+    var info = (d.balance_infos && d.balance_infos.length > 0) ? d.balance_infos[0] : null;
+    var total = info ? info.total_balance : null;
+    var granted = info ? info.granted_balance : null;
+    var toppedUp = info ? info.topped_up_balance : null;
+    var currency = info ? info.currency : '';
+
+    var circ = 2 * Math.PI * 12;
+    var pct = (countdown / REFRESH_INTERVAL) * 100;
+    var offset = circ * (1 - pct / 100);
+
+    // Record history checkpoint
+    recordCheckpoint(d);
+    var history = loadHistory();
+
+    $main.innerHTML =
+        '<div class="balance-card">' +
+        '<div class="balance-label">总余额</div>' +
+        '<div class="balance-amount"><span id="animTotal">' + fmt(total) + '</span><span class="balance-currency">' + currency + '</span></div>' +
+        '<div class="balance-details">' +
+        '<div class="balance-detail-item"><div class="detail-label">🎁 赠送余额</div><div class="detail-value">' + fmt(granted) + '</div></div>' +
+        '<div class="balance-detail-item"><div class="detail-label">💳 充值余额</div><div class="detail-value">' + fmt(toppedUp) + '</div></div>' +
+        '</div></div>' +
+        '<div class="status-row">' +
+        '<div class="status-card"><div class="status-icon">' + (d.is_available ? '✅' : '🚫') + '</div><div class="status-value ' + (d.is_available ? 'status-available' : 'status-unavailable') + '">' + (d.is_available ? '可用' : '不可用') + '</div><div class="status-label">API 状态</div></div>' +
+        '<div class="status-card" id="cardRefresh"><div class="status-icon">🔄</div><div class="status-value" id="countdownDisplay">' + countdown + 's</div><div class="status-label" id="lastUpdatedLabel">点击刷新</div></div>' +
+        '</div>' +
+        '<div class="timer-section"><div class="timer-ring"><svg width="28" height="28" viewBox="0 0 28 28"><circle class="bg" cx="14" cy="14" r="12"/><circle class="progress" cx="14" cy="14" r="12" stroke-dasharray="' + circ + '" stroke-dashoffset="' + offset + '"/></svg></div><span class="timer-text">' + countdown + 's 后自动刷新</span></div>' +
+        renderStatsHTML(history);
+
+    document.getElementById('cardRefresh').addEventListener('click', refresh);
+    updateTimestamp();
+    if (total != null) animateTotal(parseFloat(total));
+
+    // Render charts after DOM is available
+    setTimeout(function() { renderCharts(history); }, 100);
+
+    // Time toggle events
+    var toggles = document.querySelectorAll('.time-toggle');
+    for (var i = 0; i < toggles.length; i++) {
+        toggles[i].addEventListener('click', function() {
+            trendRange = this.getAttribute('data-range');
+            var history2 = loadHistory();
+            // Update toggle active states
+            var all = document.querySelectorAll('.time-toggle');
+            for (var j = 0; j < all.length; j++) all[j].classList.remove('active');
+            this.classList.add('active');
+            // Re-render trend chart only
+            destroyCharts();
+            renderCharts(history2);
+        });
+    }
+}
+
+function updateTimestamp() {
+    var el = document.getElementById('lastUpdatedLabel');
+    if (el) {
+        var now = new Date();
+        el.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()) + ' 更新';
+    }
+}
+
+function animateTotal(target) {
+    if (isNaN(target)) return;
+    var el = document.getElementById('animTotal');
+    if (!el) return;
+    var duration = 600, start = 0, startTime = performance.now();
+    function step(now) {
+        var elapsed = now - startTime;
+        var progress = Math.min(elapsed / duration, 1);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = fmt(start + (target - start) * eased);
+        if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+
+function updateTimerDisplay() {
+    var el = document.getElementById('countdownDisplay');
+    if (el) el.textContent = countdown + 's';
+    var ring = document.querySelector('.timer-ring .progress');
+    var timerText = document.querySelector('.timer-text');
+    if (ring) {
+        var pct = (countdown / REFRESH_INTERVAL) * 100;
+        var circ = 2 * Math.PI * 12;
+        ring.setAttribute('stroke-dashoffset', circ * (1 - pct / 100));
+    }
+    if (timerText) timerText.textContent = countdown + 's 后自动刷新';
+}
+
+function refresh() {
+    if (loading) return;
+    if (!apiKey) { renderNoKey(); return; }
+    loading = true;
+    countdown = REFRESH_INTERVAL;
+    renderLoading();
+    fetchBalance().then(function(d) {
+        data = d;
+        renderData(d);
+        updateTimestamp();
+    }).catch(function(e) {
+        data = null;
+        destroyCharts();
+        renderError(e.message, e.status);
+    }).finally(function() {
+        loading = false;
+        resetTimer();
+    });
+}
+
+function resetTimer() {
+    clearInterval(timerInterval);
+    countdown = REFRESH_INTERVAL;
+    timerInterval = setInterval(function() {
+        countdown--;
+        updateTimerDisplay();
+        if (countdown <= 0) refresh();
+    }, 1000);
+}
+
+function saveApiKey(key) {
+    key = key.trim();
+    apiKey = key;
+    localStorage.setItem(STORAGE_KEY, key);
+    $apiKeyInput.value = '';
+    $overlay.classList.remove('open');
+    showToast('✅ API Key 已保存');
+    refresh();
+}
+
+function clearApiKey() {
+    apiKey = '';
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(HISTORY_KEY);
+    data = null;
+    destroyCharts();
+    $overlay.classList.remove('open');
+    showToast('🗑 API Key 已清除');
+    renderNoKey();
+}
+
+function fmt(val) {
+    if (val === undefined || val === null) return '--';
+    var n = parseFloat(val);
+    if (isNaN(n)) return String(val);
+    return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function esc(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+document.getElementById('btnRefresh').addEventListener('click', refresh);
+document.getElementById('btnSettings').addEventListener('click', function() { $overlay.classList.add('open'); });
+document.getElementById('btnSaveKey').addEventListener('click', function() {
+    var key = $apiKeyInput.value.trim();
+    if (!key) { showToast('⚠️ 请输入 API Key'); return; }
+    if (key.indexOf('sk-') !== 0) { showToast('⚠️ API Key 应以 sk- 开头'); return; }
+    saveApiKey(key);
+});
+document.getElementById('btnClearKey').addEventListener('click', function() {
+    if (confirm('确定要清除 API Key 吗？')) clearApiKey();
+});
+$overlay.addEventListener('click', function(e) { if (e.target === $overlay) $overlay.classList.remove('open'); });
+$apiKeyInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        var key = $apiKeyInput.value.trim();
+        if (key && key.indexOf('sk-') === 0) saveApiKey(key);
+        else showToast('⚠️ API Key 应以 sk- 开头');
+    }
+});
+
+if (apiKey) { refresh(); } else { renderNoKey(); }
+
+// ── PWA Service Worker ─────────────
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+})();
+</script>
+</body>
+</html>
