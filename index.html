@@ -60,6 +60,16 @@ body {
 }
 .icon-btn:hover { background: var(--surface2); border-color: var(--border2); transform: scale(1.03); }
 .icon-btn:active { transform: scale(0.94); background: var(--surface3); }
+.icon-btn .badge {
+    position: absolute; top: -4px; right: -4px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red); border: 2px solid var(--bg);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+}
 
 .main { flex: 1; padding: 0 16px 28px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
@@ -389,6 +399,7 @@ var API_URLS = [
 var REFRESH_INTERVAL = 30;
 var STORAGE_KEY = 'deepseek_api_key';
 var HISTORY_KEY = 'deepseek_balance_history';
+var LAST_CKPT_KEY = 'deepseek_last_checkpoint_ts';
 var CHECKPOINT_MINUTES = 5;
 var MAX_HISTORY_DAYS = 90;
 
@@ -411,11 +422,14 @@ var chartMonthly = null;
 var trendRange = '24h';
 
 // ── Peak Hour Constants ──────────────────
+// Source: DeepSeek official announcement June 2026
+// Peak pricing effective mid-July 2026
+// Two daily blocks: 09:00-12:00 and 14:00-18:00 (UTC+8)
 var PEAK_BLOCKS = [
     { name: 'morning', startMin: 540, endMin: 720,  label: '早高峰', time: '09:00-12:00', icon: '🌅' },
     { name: 'afternoon', startMin: 840, endMin: 1080, label: '晚高峰', time: '14:00-18:00', icon: '☀️' }
 ];
-var PEAK_SOON_THRESHOLD = 60;
+var PEAK_SOON_THRESHOLD = 60; // minutes — warn when peak starts within 1 hour
 
 // ── Toast ────────────────────────────────
 var toastTimer;
@@ -431,6 +445,7 @@ function loadHistory() {
     try {
         var raw = localStorage.getItem(HISTORY_KEY);
         var arr = raw ? JSON.parse(raw) : [];
+        // Validate entries
         if (!Array.isArray(arr)) return [];
         return arr.filter(function(h) { return typeof h.t === 'number' && typeof h.v === 'number'; });
     } catch(e) { return []; }
@@ -470,6 +485,7 @@ function isTimestampPeak(ts) {
     return isPeakHour(new Date(ts));
 }
 
+// Returns which peak block a given time falls in, or null
 function getActivePeakBlock(date) {
     var bj = getBeijingTime(date || new Date());
     var mins = bj.getHours() * 60 + bj.getMinutes();
@@ -483,9 +499,11 @@ function getPeakInfo() {
     var bj = getBeijingTime(new Date());
     var mins = bj.getHours() * 60 + bj.getMinutes();
 
+    // Check if currently in a peak block
     var activeBlock = getActivePeakBlock(new Date());
 
     if (activeBlock) {
+        // Currently in peak
         var remaining = activeBlock.endMin - mins;
         return {
             isPeak: true, status: 'on', segment: activeBlock.name,
@@ -498,11 +516,13 @@ function getPeakInfo() {
         };
     }
 
+    // Not in peak — find the next peak start
     var nextBlock = null;
     var untilStart = Infinity;
 
     for (var i = 0; i < PEAK_BLOCKS.length; i++) {
         if (mins < PEAK_BLOCKS[i].startMin) {
+            // This block hasn't started yet today
             untilStart = PEAK_BLOCKS[i].startMin - mins;
             nextBlock = PEAK_BLOCKS[i];
             break;
@@ -510,6 +530,7 @@ function getPeakInfo() {
     }
 
     if (!nextBlock) {
+        // All peaks passed today — next is tomorrow's first block
         nextBlock = PEAK_BLOCKS[0];
         untilStart = (1440 - mins) + nextBlock.startMin;
     }
@@ -528,6 +549,7 @@ function getPeakInfo() {
         };
     }
 
+    // Off-peak (far from next peak)
     var dayLabel = nextBlock === PEAK_BLOCKS[0] && mins > PEAK_BLOCKS[PEAK_BLOCKS.length - 1].endMin ? '明日' : '';
     return {
         isPeak: false, status: 'off', segment: null,
@@ -558,14 +580,35 @@ function recordCheckpoint(balanceData) {
     var total = parseFloat(info.total_balance);
     if (isNaN(total)) return;
 
-    var history = loadHistory();
     var now = Date.now();
     var intervalMs = CHECKPOINT_MINUTES * 60 * 1000;
 
+    // ── Cross-tab guard ────────────────────
+    // localStorage is per-origin; writes from any tab are visible immediately.
+    // Strategy: check a separate high-frequency timestamp key BEFORE reading history,
+    // then update it AFTER writing — if two tabs race, the second one will see the
+    // first's timestamp and bail out.
+    var lastCkptRaw = localStorage.getItem(LAST_CKPT_KEY);
+    var lastCkptTs = lastCkptRaw ? parseInt(lastCkptRaw, 10) : 0;
+    if (!isNaN(lastCkptTs) && now - lastCkptTs < intervalMs) return;
+
+    // Load history AFTER the cross-tab gate to minimize the race window
+    var history = loadHistory();
+
+    // Gate: prevent duplicate within 5 min (same-tab fast path)
     if (history.length > 0) {
         var last = history[history.length - 1];
         if (now - last.t < intervalMs) return;
     }
+
+    // Cross-tab re-check: another tab may have written between our first check
+    // and now — re-read the marker to see if it changed
+    var recheck = localStorage.getItem(LAST_CKPT_KEY);
+    var recheckTs = recheck ? parseInt(recheck, 10) : 0;
+    if (!isNaN(recheckTs) && recheckTs !== lastCkptTs && now - recheckTs < intervalMs) return;
+
+    // Write marker BEFORE pushing to claim this time slot
+    localStorage.setItem(LAST_CKPT_KEY, String(now));
 
     history.push({
         t: now,
@@ -574,11 +617,13 @@ function recordCheckpoint(balanceData) {
         p: Math.round((parseFloat(info.topped_up_balance) || 0) * 100) / 100
     });
 
+    // Purge old data — use splice instead of while+shift for performance
     var cutoff = now - MAX_HISTORY_DAYS * 24 * 3600 * 1000;
     var purgeIdx = 0;
     while (purgeIdx < history.length && history[purgeIdx].t < cutoff) purgeIdx++;
     if (purgeIdx > 0) history.splice(0, purgeIdx);
 
+    // Trim to max safe size (~30k entries)
     if (history.length > 30000) history.splice(0, history.length - 30000);
 
     saveHistory(history);
@@ -594,6 +639,28 @@ function calcCosts(history) {
     var costHour = 0, costDay = 0, costMonth = 0;
     var peakHour = 0, peakDay = 0, peakMonth = 0;
     var lastTopped = null;
+    var lastTs = null;
+    var MAX_GAP_MS = 30 * 60 * 1000; // 30 min — gaps larger than this get interpolated
+
+    function addCost(amount, ts, weight) {
+        // weight: 0-1 fraction of the total drop to attribute to this time point
+        var w = weight || 1;
+        var amt = Math.round(amount * w * 100) / 100;
+        if (amt <= 0.001) return;
+        var isPeak = isTimestampPeak(ts);
+        if (ts >= thisHourStart) {
+            costHour = Math.round((costHour + amt) * 100) / 100;
+            if (isPeak) peakHour = Math.round((peakHour + amt) * 100) / 100;
+        }
+        if (ts >= todayStart) {
+            costDay = Math.round((costDay + amt) * 100) / 100;
+            if (isPeak) peakDay = Math.round((peakDay + amt) * 100) / 100;
+        }
+        if (ts >= thisMonthStart) {
+            costMonth = Math.round((costMonth + amt) * 100) / 100;
+            if (isPeak) peakMonth = Math.round((peakMonth + amt) * 100) / 100;
+        }
+    }
 
     for (var i = 0; i < history.length; i++) {
         var h = history[i];
@@ -601,31 +668,40 @@ function calcCosts(history) {
         if (lastTopped !== null) {
             var toppedDrop = lastTopped - h.p;
 
+            // Only count topped-up balance decreases as real spending
             if (toppedDrop > 0.001) {
                 toppedDrop = Math.round(toppedDrop * 100) / 100;
-                var isPeak = isTimestampPeak(h.t);
+                var gapMs = lastTs ? (h.t - lastTs) : 0;
 
-                if (h.t >= thisHourStart) {
-                    costHour = Math.round((costHour + toppedDrop) * 100) / 100;
-                    if (isPeak) peakHour = Math.round((peakHour + toppedDrop) * 100) / 100;
-                }
-                if (h.t >= todayStart) {
-                    costDay = Math.round((costDay + toppedDrop) * 100) / 100;
-                    if (isPeak) peakDay = Math.round((peakDay + toppedDrop) * 100) / 100;
-                }
-                if (h.t >= thisMonthStart) {
-                    costMonth = Math.round((costMonth + toppedDrop) * 100) / 100;
-                    if (isPeak) peakMonth = Math.round((peakMonth + toppedDrop) * 100) / 100;
+                if (gapMs > MAX_GAP_MS && lastTs) {
+                    // ── Interpolation for large gaps (e.g. device sleep) ──
+                    // Distribute the cost linearly across the gap at 30-min intervals,
+                    // each slice weighted by its fraction of the total gap duration.
+                    var slices = Math.round(gapMs / (30 * 60 * 1000));
+                    if (slices < 2) slices = 2;
+                    if (slices > 48) slices = 48; // cap at 24 hours worth
+                    var sliceWeight = 1 / slices;
+
+                    for (var s = 1; s <= slices; s++) {
+                        var sliceTs = lastTs + Math.round(gapMs * (s / slices));
+                        addCost(toppedDrop, sliceTs, sliceWeight);
+                    }
+                } else {
+                    // Normal case: gap ≤ 30min — attribute to current timestamp
+                    addCost(toppedDrop, h.t, 1);
                 }
             }
 
+            // Detect top-up: topped-up balance increased → reset baseline
             if (h.p > lastTopped + 0.001) {
                 lastTopped = h.p;
+                lastTs = h.t;
                 continue;
             }
         }
 
         lastTopped = h.p;
+        lastTs = h.t;
     }
 
     return {
@@ -656,6 +732,8 @@ function getTrendData(history, range) {
 function getBarData(history, groupBy) {
     var groups = {};
     var lastTopped = null;
+    var lastTs = null;
+    var MAX_GAP_MS = 30 * 60 * 1000;
 
     for (var i = 0; i < history.length; i++) {
         var h = history[i];
@@ -663,15 +741,36 @@ function getBarData(history, groupBy) {
             var drop = lastTopped - h.p;
             if (drop > 0.001) {
                 drop = Math.round(drop * 100) / 100;
-                var key, d = new Date(h.t);
-                if (groupBy === 'hour') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours());
-                else if (groupBy === 'day') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
-                else key = d.getFullYear() + '-' + pad(d.getMonth()+1);
-                groups[key] = Math.round(((groups[key] || 0) + drop) * 100) / 100;
+                var gapMs = lastTs ? (h.t - lastTs) : 0;
+
+                if (gapMs > MAX_GAP_MS && lastTs) {
+                    // Interpolate large gaps
+                    var slices = Math.round(gapMs / (30 * 60 * 1000));
+                    if (slices < 2) slices = 2;
+                    if (slices > 48) slices = 48;
+                    var sliceWeight = drop / slices;
+
+                    for (var s = 1; s <= slices; s++) {
+                        var sliceTs = lastTs + Math.round(gapMs * (s / slices));
+                        var sd = new Date(sliceTs);
+                        var skey;
+                        if (groupBy === 'hour') skey = sd.getFullYear() + '-' + pad(sd.getMonth()+1) + '-' + pad(sd.getDate()) + ' ' + pad(sd.getHours());
+                        else if (groupBy === 'day') skey = sd.getFullYear() + '-' + pad(sd.getMonth()+1) + '-' + pad(sd.getDate());
+                        else skey = sd.getFullYear() + '-' + pad(sd.getMonth()+1);
+                        groups[skey] = Math.round(((groups[skey] || 0) + sliceWeight) * 100) / 100;
+                    }
+                } else {
+                    // Normal case
+                    var key, d = new Date(h.t);
+                    if (groupBy === 'hour') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours());
+                    else if (groupBy === 'day') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+                    else key = d.getFullYear() + '-' + pad(d.getMonth()+1);
+                    groups[key] = Math.round(((groups[key] || 0) + drop) * 100) / 100;
+                }
             }
         }
-        if (lastTopped === null || h.p <= lastTopped) { lastTopped = h.p; }
-        else { lastTopped = h.p; }
+        if (lastTopped === null || h.p <= lastTopped) { lastTopped = h.p; lastTs = h.t; }
+        else { lastTopped = h.p; lastTs = h.t; }
     }
 
     var keys = Object.keys(groups).sort();
@@ -703,6 +802,7 @@ function renderCharts(history) {
     destroyCharts();
     if (history.length < 2) return;
 
+    // Trend line
     var td = getTrendData(history, trendRange);
     var ctxT = document.getElementById('chartTrend');
     if (ctxT) {
@@ -731,6 +831,7 @@ function renderCharts(history) {
         });
     }
 
+    // Hourly bars
     var hd = getBarData(history, 'hour');
     var ctxH = document.getElementById('chartHourly');
     if (ctxH && hd.labels.length > 0) {
@@ -751,6 +852,7 @@ function renderCharts(history) {
         });
     }
 
+    // Daily bars
     var dd = getBarData(history, 'day');
     var ctxD = document.getElementById('chartDaily');
     if (ctxD && dd.labels.length > 0) {
@@ -771,6 +873,7 @@ function renderCharts(history) {
         });
     }
 
+    // Monthly bars
     var md = getBarData(history, 'month');
     var ctxM = document.getElementById('chartMonthly');
     if (ctxM && md.labels.length > 0) {
@@ -835,6 +938,7 @@ function renderStatsHTML(history) {
         '</div>' +
         '<div class="disclaimer-row">⚠️ 费用基于充值余额减少估算，以 <a href="https://platform.deepseek.com/usage" target="_blank">DeepSeek 官方用量页面</a> 为准</div>' +
 
+        // Trend chart
         '<div class="chart-container" style="margin-top:12px;">' +
         '<div class="chart-header"><span class="chart-header-icon">📈</span><span class="chart-header-title">余额变化趋势</span></div>' +
         '<div class="time-toggles">' +
@@ -845,16 +949,19 @@ function renderStatsHTML(history) {
         (hasData ? '<div class="chart-wrap"><canvas id="chartTrend"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
         '</div>' +
 
+        // Hourly bar
         '<div class="chart-container">' +
         '<div class="chart-header"><span class="chart-header-icon">🕐</span><span class="chart-header-title">按小时费用</span></div>' +
         (hasData ? '<div class="chart-wrap"><canvas id="chartHourly"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
         '</div>' +
 
+        // Daily bar
         '<div class="chart-container">' +
         '<div class="chart-header"><span class="chart-header-icon">📅</span><span class="chart-header-title">按天费用</span></div>' +
         (hasData ? '<div class="chart-wrap"><canvas id="chartDaily"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
         '</div>' +
 
+        // Monthly bar
         '<div class="chart-container">' +
         '<div class="chart-header"><span class="chart-header-icon">📆</span><span class="chart-header-title">按月费用</span></div>' +
         (hasData ? '<div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
@@ -865,7 +972,6 @@ function renderStatsHTML(history) {
 function fetchBalance() {
     if (!apiKey) return Promise.reject(new Error('no_key'));
     var headers = { 'Accept': 'application/json', 'Authorization': 'Bearer ' + apiKey };
-    var lastErr;
 
     function tryFetch(idx) {
         return fetch(API_URLS[idx], { headers: headers }).then(function(resp) {
@@ -965,6 +1071,7 @@ function renderData(d) {
 
     setTimeout(function() { renderCharts(history); }, 150);
 
+    // Time toggle events
     var toggles = document.querySelectorAll('.time-toggle');
     for (var i = 0; i < toggles.length; i++) {
         toggles[i].addEventListener('click', function() {
@@ -1043,6 +1150,7 @@ function resetTimer() {
     countdown = REFRESH_INTERVAL;
     timerInterval = setInterval(function() {
         countdown--;
+        // Guard against negative countdown from sleep/resume
         if (countdown < -60) {
             countdown = REFRESH_INTERVAL;
             refresh();
