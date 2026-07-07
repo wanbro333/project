@@ -639,28 +639,13 @@ function calcCosts(history) {
     var costHour = 0, costDay = 0, costMonth = 0;
     var peakHour = 0, peakDay = 0, peakMonth = 0;
     var lastTopped = null;
-    var lastTs = null;
-    var MAX_GAP_MS = 30 * 60 * 1000; // 30 min — gaps larger than this get interpolated
 
-    function addCost(amount, ts, weight) {
-        // weight: 0-1 fraction of the total drop to attribute to this time point
-        var w = weight || 1;
-        var amt = Math.round(amount * w * 100) / 100;
-        if (amt <= 0.001) return;
-        var isPeak = isTimestampPeak(ts);
-        if (ts >= thisHourStart) {
-            costHour = Math.round((costHour + amt) * 100) / 100;
-            if (isPeak) peakHour = Math.round((peakHour + amt) * 100) / 100;
-        }
-        if (ts >= todayStart) {
-            costDay = Math.round((costDay + amt) * 100) / 100;
-            if (isPeak) peakDay = Math.round((peakDay + amt) * 100) / 100;
-        }
-        if (ts >= thisMonthStart) {
-            costMonth = Math.round((costMonth + amt) * 100) / 100;
-            if (isPeak) peakMonth = Math.round((peakMonth + amt) * 100) / 100;
-        }
-    }
+    // We do NOT interpolate across large gaps (e.g. device sleep).
+    // Interpolation creates phantom costs in idle hours (e.g. 3 AM)
+    // and causes daily totals to diverge from the official usage page.
+    // Instead, topped_up balance drops are attributed to the exact
+    // checkpoint timestamp where they were detected — this keeps
+    // daily/monthly totals accurate.
 
     for (var i = 0; i < history.length; i++) {
         var h = history[i];
@@ -669,39 +654,33 @@ function calcCosts(history) {
             var toppedDrop = lastTopped - h.p;
 
             // Only count topped-up balance decreases as real spending
-            if (toppedDrop > 0.001) {
+            // (granted balance expiration is NOT spending)
+            if (toppedDrop > 0.001) { // small epsilon for float safety
                 toppedDrop = Math.round(toppedDrop * 100) / 100;
-                var gapMs = lastTs ? (h.t - lastTs) : 0;
+                var isPeak = isTimestampPeak(h.t);
 
-                if (gapMs > MAX_GAP_MS && lastTs) {
-                    // ── Interpolation for large gaps (e.g. device sleep) ──
-                    // Distribute the cost linearly across the gap at 30-min intervals,
-                    // each slice weighted by its fraction of the total gap duration.
-                    var slices = Math.round(gapMs / (30 * 60 * 1000));
-                    if (slices < 2) slices = 2;
-                    if (slices > 48) slices = 48; // cap at 24 hours worth
-                    var sliceWeight = 1 / slices;
-
-                    for (var s = 1; s <= slices; s++) {
-                        var sliceTs = lastTs + Math.round(gapMs * (s / slices));
-                        addCost(toppedDrop, sliceTs, sliceWeight);
-                    }
-                } else {
-                    // Normal case: gap ≤ 30min — attribute to current timestamp
-                    addCost(toppedDrop, h.t, 1);
+                if (h.t >= thisHourStart) {
+                    costHour = Math.round((costHour + toppedDrop) * 100) / 100;
+                    if (isPeak) peakHour = Math.round((peakHour + toppedDrop) * 100) / 100;
+                }
+                if (h.t >= todayStart) {
+                    costDay = Math.round((costDay + toppedDrop) * 100) / 100;
+                    if (isPeak) peakDay = Math.round((peakDay + toppedDrop) * 100) / 100;
+                }
+                if (h.t >= thisMonthStart) {
+                    costMonth = Math.round((costMonth + toppedDrop) * 100) / 100;
+                    if (isPeak) peakMonth = Math.round((peakMonth + toppedDrop) * 100) / 100;
                 }
             }
 
             // Detect top-up: topped-up balance increased → reset baseline
             if (h.p > lastTopped + 0.001) {
                 lastTopped = h.p;
-                lastTs = h.t;
                 continue;
             }
         }
 
         lastTopped = h.p;
-        lastTs = h.t;
     }
 
     return {
@@ -732,8 +711,10 @@ function getTrendData(history, range) {
 function getBarData(history, groupBy) {
     var groups = {};
     var lastTopped = null;
-    var lastTs = null;
-    var MAX_GAP_MS = 30 * 60 * 1000;
+
+    // No interpolation — costs are attributed to the exact checkpoint
+    // timestamp where the topped_up drop was detected. This avoids
+    // phantom costs in idle hours (e.g. 3 AM when the device slept).
 
     for (var i = 0; i < history.length; i++) {
         var h = history[i];
@@ -741,36 +722,15 @@ function getBarData(history, groupBy) {
             var drop = lastTopped - h.p;
             if (drop > 0.001) {
                 drop = Math.round(drop * 100) / 100;
-                var gapMs = lastTs ? (h.t - lastTs) : 0;
-
-                if (gapMs > MAX_GAP_MS && lastTs) {
-                    // Interpolate large gaps
-                    var slices = Math.round(gapMs / (30 * 60 * 1000));
-                    if (slices < 2) slices = 2;
-                    if (slices > 48) slices = 48;
-                    var sliceWeight = drop / slices;
-
-                    for (var s = 1; s <= slices; s++) {
-                        var sliceTs = lastTs + Math.round(gapMs * (s / slices));
-                        var sd = new Date(sliceTs);
-                        var skey;
-                        if (groupBy === 'hour') skey = sd.getFullYear() + '-' + pad(sd.getMonth()+1) + '-' + pad(sd.getDate()) + ' ' + pad(sd.getHours());
-                        else if (groupBy === 'day') skey = sd.getFullYear() + '-' + pad(sd.getMonth()+1) + '-' + pad(sd.getDate());
-                        else skey = sd.getFullYear() + '-' + pad(sd.getMonth()+1);
-                        groups[skey] = Math.round(((groups[skey] || 0) + sliceWeight) * 100) / 100;
-                    }
-                } else {
-                    // Normal case
-                    var key, d = new Date(h.t);
-                    if (groupBy === 'hour') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours());
-                    else if (groupBy === 'day') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
-                    else key = d.getFullYear() + '-' + pad(d.getMonth()+1);
-                    groups[key] = Math.round(((groups[key] || 0) + drop) * 100) / 100;
-                }
+                var key, d = new Date(h.t);
+                if (groupBy === 'hour') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours());
+                else if (groupBy === 'day') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+                else key = d.getFullYear() + '-' + pad(d.getMonth()+1);
+                groups[key] = Math.round(((groups[key] || 0) + drop) * 100) / 100;
             }
         }
-        if (lastTopped === null || h.p <= lastTopped) { lastTopped = h.p; lastTs = h.t; }
-        else { lastTopped = h.p; lastTs = h.t; }
+        if (lastTopped === null || h.p <= lastTopped) { lastTopped = h.p; }
+        else { lastTopped = h.p; } // top-up detected, reset
     }
 
     var keys = Object.keys(groups).sort();
