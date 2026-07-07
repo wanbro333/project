@@ -181,6 +181,46 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Peak hour banner ──────────────── */
+.peak-banner {
+    border-radius: 14px; padding: 14px 16px; font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+    animation: peakPulse 2s ease-in-out infinite;
+}
+.peak-banner.peak-on {
+    background: linear-gradient(135deg, rgba(248,81,73,0.18), rgba(248,81,73,0.06));
+    border: 1px solid rgba(248,81,73,0.4);
+    color: #ff8b7a;
+}
+.peak-banner.peak-off {
+    background: linear-gradient(135deg, rgba(63,185,80,0.1), rgba(63,185,80,0.03));
+    border: 1px solid rgba(63,185,80,0.25);
+    color: #7ee787;
+}
+.peak-banner.peak-soon {
+    background: linear-gradient(135deg, rgba(210,153,29,0.15), rgba(210,153,29,0.04));
+    border: 1px solid rgba(210,153,29,0.4);
+    color: #f0c060;
+}
+@keyframes peakPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.75; }
+}
+.peak-banner-icon { font-size: 22px; flex-shrink: 0; }
+.peak-banner-body { flex: 1; }
+.peak-banner-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.peak-banner-sub { font-size: 11px; opacity: 0.85; line-height: 1.4; }
+.peak-banner-countdown { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* peak cost indicator in summary */
+.cost-peak-tag {
+    display: inline-block; font-size: 10px; padding: 2px 6px;
+    border-radius: 4px; margin-left: 4px; vertical-align: middle;
+    font-weight: 600;
+}
+.cost-peak-tag.on { background: rgba(248,81,73,0.25); color: var(--red); }
+.cost-peak-tag.off { background: rgba(63,185,80,0.2); color: var(--green); }
+
 .toast {
     position: fixed; bottom: 24px; left: 50%;
     transform: translateX(-50%) translateY(100px);
@@ -235,6 +275,85 @@ const STORAGE_KEY = 'deepseek_api_key';
 const HISTORY_KEY = 'deepseek_balance_history';
 const CHECKPOINT_MINUTES = 5;   // record every 5 min
 const MAX_HISTORY_DAYS = 90;
+
+// ── Peak hour helpers ────────────────
+// DeepSeek peak hours: 00:30-08:30 Beijing time (UTC+8)
+const PEAK_START_H = 0, PEAK_START_M = 30;   // 00:30
+const PEAK_END_H = 8, PEAK_END_M = 30;       // 08:30
+
+function getBeijingTime(date) {
+    // Get Beijing time components from any Date object
+    // UTC+8 offset in ms
+    var utc = date.getTime() + date.getTimezoneOffset() * 60000;
+    return new Date(utc + 8 * 3600000);
+}
+
+function isPeakHour(date) {
+    var bj = getBeijingTime(date || new Date());
+    var h = bj.getHours(), m = bj.getMinutes();
+    var mins = h * 60 + m;
+    var startMins = PEAK_START_H * 60 + PEAK_START_M;
+    var endMins = PEAK_END_H * 60 + PEAK_END_M;
+    return mins >= startMins && mins < endMins;
+}
+
+function getPeakInfo() {
+    // Returns { isPeak, nextLabel, countdown, status }
+    var bj = getBeijingTime(new Date());
+    var h = bj.getHours(), m = bj.getMinutes();
+    var mins = h * 60 + m;
+    var startMins = PEAK_START_H * 60 + PEAK_START_M;   // 30
+    var endMins = PEAK_END_H * 60 + PEAK_END_M;           // 510
+
+    var info = {};
+
+    if (mins >= startMins && mins < endMins) {
+        // Currently in peak
+        info.isPeak = true;
+        info.status = 'on';
+        info.title = '🔥 当前为高峰时段';
+        info.sub = 'DeepSeek API 费率翻倍（2×），请注意控制用量';
+        var remaining = endMins - mins; // minutes until peak ends
+        info.nextLabel = '高峰结束';
+        info.countdown = remaining;
+    } else {
+        info.isPeak = false;
+        var untilStart;
+        if (mins >= endMins) {
+            // After peak today, next peak is tomorrow 00:30
+            untilStart = (24 * 60 - mins) + startMins;
+        } else {
+            // Before peak today
+            untilStart = startMins - mins;
+        }
+        info.countdown = untilStart;
+        if (untilStart <= 60) {
+            // Within 1 hour of peak starting
+            info.status = 'soon';
+            info.title = '⚠️ 高峰时段即将到来';
+            info.sub = '建议暂缓大量调用，费率将在 ' + formatCountdown(untilStart) + ' 后翻倍';
+            info.nextLabel = '高峰开始';
+        } else {
+            info.status = 'off';
+            info.title = '🟢 当前为非高峰时段';
+            info.sub = '费率正常，高峰时段 00:30-08:30';
+            info.nextLabel = '距高峰';
+        }
+    }
+    return info;
+}
+
+function formatCountdown(totalMinutes) {
+    if (totalMinutes <= 0) return '0分钟';
+    var h = Math.floor(totalMinutes / 60);
+    var m = totalMinutes % 60;
+    if (h > 0) return h + '小时' + (m > 0 ? m + '分钟' : '');
+    return m + '分钟';
+}
+
+function isTimestampPeak(ts) {
+    return isPeakHour(new Date(ts));
+}
 
 const $main = document.getElementById('mainContent');
 const $overlay = document.getElementById('settingsOverlay');
@@ -309,6 +428,7 @@ function calcCosts(history) {
     var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
     var costHour = 0, costDay = 0, costMonth = 0;
+    var peakHour = 0, peakDay = 0, peakMonth = 0;
     var lastVal = null;
 
     for (var i = 0; i < history.length; i++) {
@@ -316,16 +436,17 @@ function calcCosts(history) {
         if (lastVal !== null) {
             var drop = lastVal - h.v;
             if (drop > 0) {
-                if (h.t >= thisHourStart) costHour += drop;
-                if (h.t >= todayStart) costDay += drop;
-                if (h.t >= thisMonthStart) costMonth += drop;
+                var isPeak = isTimestampPeak(h.t);
+                if (h.t >= thisHourStart) { costHour += drop; if (isPeak) peakHour += drop; }
+                if (h.t >= todayStart) { costDay += drop; if (isPeak) peakDay += drop; }
+                if (h.t >= thisMonthStart) { costMonth += drop; if (isPeak) peakMonth += drop; }
             }
         }
         // Reset baseline if balance increased (top-up)
         if (lastVal !== null && h.v > lastVal) { lastVal = h.v; continue; }
         lastVal = h.v;
     }
-    return { hour: costHour, day: costDay, month: costMonth };
+    return { hour: costHour, day: costDay, month: costMonth, peakHour: peakHour, peakDay: peakDay, peakMonth: peakMonth };
 }
 
 // ── Chart builders ───────────────────
@@ -494,15 +615,33 @@ function renderCharts(history) {
     }
 }
 
+function renderPeakBannerHTML() {
+    var info = getPeakInfo();
+    var cdn = formatCountdown(info.countdown);
+    return '<div class="peak-banner peak-' + info.status + '">' +
+        '<div class="peak-banner-icon">' + (info.status === 'on' ? '🔴' : info.status === 'soon' ? '🟡' : '🟢') + '</div>' +
+        '<div class="peak-banner-body">' +
+        '<div class="peak-banner-title">' + info.title + '</div>' +
+        '<div class="peak-banner-sub">' + info.sub + ' · <span class="peak-banner-countdown">' + cdn + '</span></div>' +
+        '</div></div>';
+}
+
 function renderStatsHTML(history) {
     var costs = calcCosts(history);
     var hasData = history.length >= 2;
+    var peakInfo = getPeakInfo();
+
+    function peakTag(peakAmt) {
+        if (!hasData || peakAmt <= 0) return '';
+        var cls = peakInfo.isPeak ? 'on' : 'off';
+        return '<span class="cost-peak-tag ' + cls + '">峰值 ¥' + peakAmt.toFixed(2) + '</span>';
+    }
 
     return '<div class="stats-divider"><span>📊 费用统计</span></div>' +
         '<div class="cost-summary">' +
-        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.hour.toFixed(2) : '--') + '</div><div class="cost-label">本小时花费</div></div>' +
-        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.day.toFixed(2) : '--') + '</div><div class="cost-label">今天花费</div></div>' +
-        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.month.toFixed(2) : '--') + '</div><div class="cost-label">本月花费</div></div>' +
+        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.hour.toFixed(2) : '--') + '</div><div class="cost-label">本小时花费' + peakTag(costs.peakHour) + '</div></div>' +
+        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.day.toFixed(2) : '--') + '</div><div class="cost-label">今天花费' + peakTag(costs.peakDay) + '</div></div>' +
+        '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.month.toFixed(2) : '--') + '</div><div class="cost-label">本月花费' + peakTag(costs.peakMonth) + '</div></div>' +
         '</div>' +
 
         // Trend chart
@@ -613,6 +752,7 @@ function renderData(d) {
         '<div class="balance-detail-item"><div class="detail-label">🎁 赠送余额</div><div class="detail-value">' + fmt(granted) + '</div></div>' +
         '<div class="balance-detail-item"><div class="detail-label">💳 充值余额</div><div class="detail-value">' + fmt(toppedUp) + '</div></div>' +
         '</div></div>' +
+        renderPeakBannerHTML() +
         '<div class="status-row">' +
         '<div class="status-card"><div class="status-icon">' + (d.is_available ? '✅' : '🚫') + '</div><div class="status-value ' + (d.is_available ? 'status-available' : 'status-unavailable') + '">' + (d.is_available ? '可用' : '不可用') + '</div><div class="status-label">API 状态</div></div>' +
         '<div class="status-card" id="cardRefresh"><div class="status-icon">🔄</div><div class="status-value" id="countdownDisplay">' + countdown + 's</div><div class="status-label" id="lastUpdatedLabel">点击刷新</div></div>' +
