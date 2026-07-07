@@ -65,5 +65,29 @@ Minimal Android project — a single `Activity` that creates a `WebView` and loa
 
 - **CORS**: DeepSeek API returns `access-control-allow-origin` matching the request Origin. Direct `fetch` from any browser context (including `file://` and WebView) works.
 - **API key validation**: checked client-side — must start with `sk-`. The actual auth check happens server-side on first API call.
-- **Refresh timer**: 30-second countdown via `setInterval`. Clicking the refresh card resets the timer and fetches immediately.
+- **Refresh timer**: 30-second countdown via `setInterval`.
 - **The APK's `assets/index.html` is a copy of `deepseek-balance.html`** — when updating the app, rebuild the APK after changes to the HTML.
+
+## Cost tracking
+
+- **Data source**: `topped_up_balance` decreases only (grant expiration is NOT spending).
+- **Storage**: 5-minute checkpoints in `localStorage` (`deepseek_balance_history`), 90-day retention.
+- **Time zone**: All date boundaries use **Beijing time (UTC+8)** — DeepSeek billing is BJ time. `getBeijingTime()`, `getBeijingDateBoundaries()`, `getBeijingDateKey()` handle conversion.
+- **No interpolation**: Costs are attributed to the exact checkpoint timestamp. Linear interpolation was removed (it created phantom costs in idle hours).
+- **Peak hours**: 09:00-12:00 + 14:00-18:00 Beijing time (source: DeepSeek June 2026 official announcement).
+- **Cross-tab guard**: `LAST_CKPT_KEY` in localStorage prevents duplicate checkpoints from multiple tabs.
+
+## Recent fixes (v1.2.0)
+
+| Bug | Fix |
+|-----|-----|
+| Peak hours wrong (00:30-08:30) | Correct: 09:00-12:00 + 14:00-18:00 UTC+8 |
+| Grant expiration counted as cost | Track only `topped_up_balance` drops |
+| O(n²) history purge | `splice(0, n)` instead of `while`+`shift` |
+| Cross-tab duplicate checkpoints | `LAST_CKPT_KEY` marker + re-check pattern |
+| Phantom costs from interpolation | Removed — direct attribution to checkpoint |
+| Negative countdown after sleep | Guard: `countdown < -60` → reset |
+| Date boundaries wrong timezone | Beijing time via `getBeijingDateBoundaries()` |
+| Multi-currency wrong balance | `selectBalanceInfo()` prefers CNY |
+| Float precision errors | `Math.round(x * 100) / 100` everywhere |
+| Peak tag color wrong | Always red for peak spending |
