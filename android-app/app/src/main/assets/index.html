@@ -5,242 +5,353 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#0a0e14">
 <title>DeepSeek Balance</title>
 <style>
 :root {
-    --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
-    --border: #30363d; --text: #e6edf3; --text2: #8b949e;
-    --accent: #4f8cff; --green: #3fb950; --red: #f85149; --orange: #d2991d;
-    --radius: 16px;
+    --bg: #0a0e14; --bg2: #0f131a; --surface: #141920;
+    --surface2: #1a1f28; --surface3: #1f2530;
+    --border: #252b36; --border2: #2d3540;
+    --text: #e8edf4; --text2: #8895a7; --text3: #5c6778;
+    --accent: #5b8def; --accent2: #7c5ce7; --accent-glow: rgba(91,141,239,0.15);
+    --green: #34d399; --green-bg: rgba(52,211,153,0.1);
+    --red: #f87171; --red-bg: rgba(248,113,113,0.1);
+    --orange: #fbbf24; --orange-bg: rgba(251,191,36,0.1);
+    --radius: 18px; --radius-sm: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: var(--bg); }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg); color: var(--text);
-    min-height: 100vh; min-height: 100dvh;
+    font-family: var(--font); background: linear-gradient(180deg, #0a0e14 0%, #0f131a 30%, #0d1117 100%);
+    color: var(--text); min-height: 100vh; min-height: 100dvh;
     display: flex; flex-direction: column;
     -webkit-tap-highlight-color: transparent;
     user-select: none; -webkit-user-select: none;
+    overflow-x: hidden;
 }
+
+/* ── Header ──────────────────────────── */
 .header {
-    padding: 16px 20px; display: flex; align-items: center;
-    justify-content: space-between; gap: 12px;
-    flex-shrink: 0;
+    padding: 14px 18px; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-shrink: 0;
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10,14,20,0.85); backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(37,43,54,0.5);
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .logo {
-    width: 36px; height: 36px; background: var(--accent);
-    border-radius: 10px; display: flex; align-items: center;
-    justify-content: center; font-size: 20px;
-}
-.header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
-.header-actions { display: flex; gap: 8px; }
-.icon-btn {
-    width: 40px; height: 40px; border-radius: 12px;
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--text2); font-size: 18px; cursor: pointer;
+    width: 38px; height: 38px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
     display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s; position: relative;
+    font-size: 19px; box-shadow: 0 4px 12px rgba(91,141,239,0.25);
 }
-.icon-btn:active { transform: scale(0.94); background: var(--surface2); }
-.main { flex: 1; padding: 0 16px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.header h1 { font-size: 19px; font-weight: 750; letter-spacing: -0.3px; }
+.header-actions { display: flex; gap: 6px; }
+.icon-btn {
+    width: 38px; height: 38px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text2); font-size: 17px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease; position: relative;
+}
+.icon-btn:hover { background: var(--surface2); border-color: var(--border2); transform: scale(1.03); }
+.icon-btn:active { transform: scale(0.94); background: var(--surface3); }
+.icon-btn .badge {
+    position: absolute; top: -4px; right: -4px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red); border: 2px solid var(--bg);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+}
 
-.balance-card {
+.main { flex: 1; padding: 0 16px 28px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Cards ───────────────────────────── */
+.card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 24px;
+    border-radius: var(--radius); padding: 20px;
     position: relative; overflow: hidden;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+@media (hover: hover) {
+    .card:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+}
+
+/* ── Balance Card ────────────────────── */
+.balance-card {
+    background: linear-gradient(160deg, #141920 0%, #181e28 100%);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px 20px 20px; position: relative; overflow: hidden;
 }
 .balance-card::before {
-    content: ''; position: absolute; top: -50%; right: -30%;
-    width: 200px; height: 200px;
-    background: radial-gradient(circle, rgba(79,140,255,0.08) 0%, transparent 70%);
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), transparent 70%);
+    border-radius: 3px 3px 0 0;
+}
+.balance-card::after {
+    content: ''; position: absolute; top: -40%; right: -25%;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
     border-radius: 50%; pointer-events: none;
 }
-.balance-label { font-size: 13px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-.balance-amount { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; position: relative; z-index: 1; }
-.balance-currency { font-size: 20px; font-weight: 500; color: var(--text2); margin-left: 4px; }
-.balance-details { display: flex; gap: 16px; margin-top: 16px; position: relative; z-index: 1; }
-.balance-detail-item { flex: 1; background: var(--surface2); border-radius: 10px; padding: 12px; }
-.detail-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
-.detail-value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+.balance-label {
+    font-size: 12px; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 6px; font-weight: 500;
+    position: relative; z-index: 1;
+}
+.balance-row { display: flex; align-items: baseline; gap: 6px; position: relative; z-index: 1; }
+.balance-amount {
+    font-size: 50px; font-weight: 850; letter-spacing: -2px; line-height: 1;
+    background: linear-gradient(135deg, #e8edf4 0%, #bcc8dc 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.balance-currency { font-size: 18px; font-weight: 500; color: var(--text2); }
+.balance-details { display: flex; gap: 10px; margin-top: 16px; position: relative; z-index: 1; }
+.balance-detail-item {
+    flex: 1; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-sm);
+    padding: 12px 14px; transition: background 0.2s;
+}
+.balance-detail-item:hover { background: rgba(255,255,255,0.05); }
+.detail-icon { font-size: 15px; margin-bottom: 4px; }
+.detail-label { font-size: 10.5px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+.detail-value { font-size: 17px; font-weight: 700; margin-top: 2px; color: var(--text); }
 
-.status-row { display: flex; gap: 12px; }
+/* ── Status Row ──────────────────────── */
+.status-row { display: flex; gap: 10px; }
 .status-card {
     flex: 1; background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 16px; text-align: center;
-    cursor: pointer; transition: all 0.15s;
+    border-radius: var(--radius-sm); padding: 14px; text-align: center;
+    cursor: pointer; transition: all 0.2s ease;
 }
 .status-card:active { transform: scale(0.97); background: var(--surface2); }
-.status-icon { font-size: 28px; margin-bottom: 4px; }
-.status-value { font-size: 22px; font-weight: 700; }
-.status-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.status-icon { font-size: 24px; margin-bottom: 2px; }
+.status-value { font-size: 20px; font-weight: 750; transition: color 0.3s; }
+.status-label { font-size: 10.5px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
 .status-available { color: var(--green); }
 .status-unavailable { color: var(--red); }
 
-.timer-section { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 0; color: var(--text2); font-size: 13px; }
-.timer-ring { position: relative; width: 28px; height: 28px; }
+/* ── Timer ───────────────────────────── */
+.timer-section {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 2px 0; color: var(--text3); font-size: 12.5px;
+}
+.timer-ring { position: relative; width: 30px; height: 30px; }
 .timer-ring svg { transform: rotate(-90deg); }
-.timer-ring .bg { fill: none; stroke: var(--surface2); stroke-width: 3; }
-.timer-ring .progress { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
-.timer-text { font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; }
+.timer-ring .bg { fill: none; stroke: var(--surface2); stroke-width: 2.5; }
+.timer-ring .progress {
+    fill: none; stroke: url(#timerGradient); stroke-width: 2.5;
+    stroke-linecap: round; transition: stroke-dashoffset 1s linear;
+}
+.timer-text { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; color: var(--text2); }
 
-/* ── Stats section ─────────────────── */
-.stats-section { display: flex; flex-direction: column; gap: 16px; }
+/* ── Peak Banner ─────────────────────── */
+.peak-banner {
+    border-radius: var(--radius-sm); padding: 12px 14px; font-size: 12.5px;
+    display: flex; align-items: center; gap: 10px;
+    animation: peakPulse 3s ease-in-out infinite;
+    transition: all 0.3s ease;
+}
+.peak-banner.peak-on {
+    background: linear-gradient(135deg, rgba(248,113,113,0.13), rgba(248,113,113,0.04));
+    border: 1px solid rgba(248,113,113,0.3); color: #fca5a5;
+}
+.peak-banner.peak-off {
+    background: linear-gradient(135deg, rgba(52,211,153,0.08), rgba(52,211,153,0.02));
+    border: 1px solid rgba(52,211,153,0.2); color: #6ee7b7;
+    animation: none;
+}
+.peak-banner.peak-soon {
+    background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.03));
+    border: 1px solid rgba(251,191,36,0.3); color: #fcd34d;
+}
+@keyframes peakPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+.peak-banner-icon { font-size: 20px; flex-shrink: 0; }
+.peak-banner-body { flex: 1; min-width: 0; }
+.peak-banner-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.peak-banner-sub { font-size: 11px; opacity: 0.85; line-height: 1.4; }
+.peak-banner-countdown { font-weight: 700; font-variant-numeric: tabular-nums; }
+.peak-progress-bar {
+    height: 3px; background: rgba(255,255,255,0.1);
+    border-radius: 2px; margin-top: 6px; overflow: hidden;
+}
+.peak-progress-fill {
+    height: 100%; border-radius: 2px; transition: width 60s linear;
+}
+.peak-on .peak-progress-fill { background: var(--red); }
+.peak-soon .peak-progress-fill { background: var(--orange); }
+
+/* ── Stats ───────────────────────────── */
 .stats-divider {
-    height: 1px; background: var(--border); margin: 4px 0;
+    height: 1px; background: var(--border); margin: 6px 0;
     position: relative; text-align: center;
 }
 .stats-divider span {
     position: relative; top: -10px; background: var(--bg);
-    padding: 0 12px; color: var(--text2); font-size: 12px;
-    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0 14px; color: var(--text3); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;
 }
-
-.time-toggles { display: flex; gap: 6px; justify-content: center; }
-.time-toggle {
-    padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text2); font-size: 12px;
-    cursor: pointer; transition: all 0.15s; font-weight: 500;
-}
-.time-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.time-toggle:active { transform: scale(0.95); }
-
-.cost-summary { display: flex; gap: 10px; }
+.cost-summary { display: flex; gap: 8px; }
 .cost-card {
     flex: 1; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 14px; text-align: center;
+    border-radius: var(--radius-sm); padding: 14px 10px; text-align: center;
 }
-.cost-card .cost-amount { font-size: 20px; font-weight: 800; color: var(--accent); }
-.cost-card .cost-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.cost-card .cost-amount {
+    font-size: 20px; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.cost-card .cost-label { font-size: 10.5px; color: var(--text3); margin-top: 2px; line-height: 1.5; }
+.cost-peak-tag {
+    display: block; font-size: 9.5px; padding: 2px 0; font-weight: 600;
+    color: var(--red);
+}
 
+.disclaimer-row {
+    font-size: 10.5px; color: var(--text3); text-align: center;
+    padding: 2px 8px; line-height: 1.6; opacity: 0.7;
+}
+.disclaimer-row a { color: var(--accent); text-decoration: none; }
+
+/* ── Charts ──────────────────────────── */
 .chart-container {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 16px;
 }
-.chart-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+.chart-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.chart-header-icon { font-size: 16px; }
+.chart-header-title {
+    font-size: 12.5px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
 .chart-wrap { position: relative; width: 100%; height: 200px; }
 .chart-wrap canvas { width: 100% !important; height: 100% !important; }
 
-.no-data-hint { text-align: center; color: var(--text2); font-size: 13px; padding: 24px 0; }
+.time-toggles { display: flex; gap: 4px; margin-bottom: 12px; }
+.time-toggle {
+    padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2); font-size: 11px;
+    cursor: pointer; transition: all 0.2s ease; font-weight: 500;
+}
+.time-toggle.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; border-color: transparent; box-shadow: 0 2px 8px var(--accent-glow);
+}
+.time-toggle:active { transform: scale(0.95); }
+.no-data-hint { text-align: center; color: var(--text3); font-size: 12px; padding: 20px 0; }
 
+/* ── Settings ────────────────────────── */
 .settings-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-    z-index: 100; display: flex; align-items: flex-end; justify-content: center;
-    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    padding: 20px;
 }
 .settings-overlay.open { opacity: 1; pointer-events: auto; }
 .settings-panel {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 20px 20px 0 0; width: 100%; max-width: 500px;
-    padding: 24px 20px 32px;
-    transform: translateY(100%);
+    border-radius: var(--radius); width: 100%; max-width: 380px;
+    padding: 24px 20px;
+    transform: translateY(20px) scale(0.96);
     transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
-.settings-overlay.open .settings-panel { transform: translateY(0); }
-.settings-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
-.settings-panel h3 { font-size: 18px; margin-bottom: 16px; }
-.input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-.input-group label { font-size: 13px; color: var(--text2); font-weight: 500; }
+.settings-overlay.open .settings-panel { transform: translateY(0) scale(1); }
+.settings-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 18px; }
+.settings-panel h3 { font-size: 17px; margin-bottom: 16px; font-weight: 700; }
+.input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.input-group label { font-size: 12px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 .input-row { display: flex; gap: 8px; }
 .input-row input {
     flex: 1; background: var(--surface2); border: 1px solid var(--border);
     border-radius: 10px; padding: 12px 14px; color: var(--text);
-    font-size: 15px; font-family: 'SF Mono', 'Fira Code', monospace;
-    outline: none; transition: border-color 0.15s;
+    font-size: 14px; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    outline: none; transition: all 0.2s;
 }
-.input-row input:focus { border-color: var(--accent); }
+.input-row input:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+}
 .btn {
-    padding: 10px 18px; border-radius: 10px; font-size: 14px;
-    font-weight: 600; cursor: pointer; border: none;
-    transition: all 0.15s; white-space: nowrap;
+    padding: 10px 18px; border-radius: 10px; font-size: 13px;
+    font-weight: 650; cursor: pointer; border: none;
+    transition: all 0.2s ease; white-space: nowrap;
 }
 .btn:active { transform: scale(0.96); }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
-.btn-sm { padding: 6px 12px; font-size: 11px; border-radius: 6px; }
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; box-shadow: 0 2px 8px var(--accent-glow);
+}
+.btn-primary:hover { box-shadow: 0 4px 16px rgba(91,141,239,0.3); }
+.btn-danger { background: transparent; border: 1px solid rgba(248,113,113,0.3); color: var(--red); }
+.btn-danger:hover { background: var(--red-bg); }
+.btn-sm { padding: 6px 12px; font-size: 11px; border-radius: 8px; }
 
-.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; gap: 12px; }
-.empty-icon { font-size: 64px; }
-.empty-state h2 { font-size: 20px; }
-.empty-state p { color: var(--text2); font-size: 14px; line-height: 1.5; }
+/* ── Empty State ─────────────────────── */
+.empty-state {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 40px 24px; gap: 10px;
+}
+.empty-icon { font-size: 56px; margin-bottom: 8px; }
+.empty-state h2 { font-size: 18px; font-weight: 700; }
+.empty-state p { color: var(--text2); font-size: 13.5px; line-height: 1.6; max-width: 280px; }
+.empty-state a { color: var(--accent); text-decoration: none; }
 
+/* ── Error ───────────────────────────── */
 .error-banner {
-    background: rgba(248,81,73,0.12); border: 1px solid rgba(248,81,73,0.3);
-    border-radius: 12px; padding: 12px 16px; font-size: 13px; color: var(--red);
+    background: var(--red-bg); border: 1px solid rgba(248,113,113,0.25);
+    border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px;
     display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
 }
-.error-banner .err-title { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.error-banner .err-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--red); }
 .error-banner .err-body { font-size: 12px; line-height: 1.6; color: var(--text2); }
 
+/* ── Loading ─────────────────────────── */
 .loading-spinner {
-    width: 40px; height: 40px; border: 3px solid var(--surface2);
+    width: 36px; height: 36px; border: 3px solid var(--surface2);
     border-top-color: var(--accent); border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Peak hour banner ──────────────── */
-.peak-banner {
-    border-radius: 14px; padding: 14px 16px; font-size: 13px;
-    display: flex; align-items: center; gap: 10px;
-    animation: peakPulse 2s ease-in-out infinite;
-}
-.peak-banner.peak-on {
-    background: linear-gradient(135deg, rgba(248,81,73,0.18), rgba(248,81,73,0.06));
-    border: 1px solid rgba(248,81,73,0.4);
-    color: #ff8b7a;
-}
-.peak-banner.peak-off {
-    background: linear-gradient(135deg, rgba(63,185,80,0.1), rgba(63,185,80,0.03));
-    border: 1px solid rgba(63,185,80,0.25);
-    color: #7ee787;
-}
-.peak-banner.peak-soon {
-    background: linear-gradient(135deg, rgba(210,153,29,0.15), rgba(210,153,29,0.04));
-    border: 1px solid rgba(210,153,29,0.4);
-    color: #f0c060;
-}
-@keyframes peakPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.75; }
-}
-.peak-banner-icon { font-size: 22px; flex-shrink: 0; }
-.peak-banner-body { flex: 1; }
-.peak-banner-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-.peak-banner-sub { font-size: 11px; opacity: 0.85; line-height: 1.4; }
-.peak-banner-countdown { font-weight: 700; font-variant-numeric: tabular-nums; }
-
-/* peak cost indicator in summary */
-.cost-peak-tag {
-    display: inline-block; font-size: 10px; padding: 2px 6px;
-    border-radius: 4px; margin-left: 4px; vertical-align: middle;
-    font-weight: 600;
-}
-.cost-peak-tag.on { background: rgba(248,81,73,0.25); color: var(--red); }
-.cost-peak-tag.off { background: rgba(63,185,80,0.2); color: var(--green); }
-
+/* ── Toast ───────────────────────────── */
 .toast {
-    position: fixed; bottom: 24px; left: 50%;
-    transform: translateX(-50%) translateY(100px);
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(120px);
     background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 12px; padding: 10px 20px; font-size: 14px;
-    z-index: 200; transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    border-radius: 12px; padding: 10px 22px; font-size: 13px;
+    z-index: 200; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5); pointer-events: none;
+    font-weight: 500;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
+/* ── Desktop ─────────────────────────── */
 @media (min-width: 500px) {
     .main { max-width: 440px; margin: 0 auto; }
-    .header { max-width: 440px; margin: 0 auto; width: 100%; }
+    .header { max-width: 440px; margin: 0 auto; width: 100%; padding: 14px 0; }
 }
 </style>
 </head>
 <body>
 
 <header class="header">
-    <div class="header-left"><div class="logo">💎</div><h1>DeepSeek</h1></div>
+    <div class="header-left">
+        <div class="logo">💎</div>
+        <h1>DeepSeek</h1>
+    </div>
     <div class="header-actions">
         <button class="icon-btn" id="btnRefresh" title="刷新">🔄</button>
         <button class="icon-btn" id="btnSettings" title="设置">⚙️</button>
@@ -248,6 +359,16 @@ body {
 </header>
 
 <main class="main" id="mainContent"></main>
+
+<!-- Timer gradient (referenced by SVG) -->
+<svg width="0" height="0" style="position:absolute">
+    <defs>
+        <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#5b8def"/>
+            <stop offset="100%" stop-color="#7c5ce7"/>
+        </linearGradient>
+    </defs>
+</svg>
 
 <div class="settings-overlay" id="settingsOverlay">
     <div class="settings-panel">
@@ -269,78 +390,172 @@ body {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 (function() {
-const API_URL = 'https://api.deepseek.com/user/balance';
-const REFRESH_INTERVAL = 30;
-const STORAGE_KEY = 'deepseek_api_key';
-const HISTORY_KEY = 'deepseek_balance_history';
-const CHECKPOINT_MINUTES = 5;   // record every 5 min
-const MAX_HISTORY_DAYS = 90;
+var API_URL = 'https://api.deepseek.com/user/balance';
+var REFRESH_INTERVAL = 30;
+var STORAGE_KEY = 'deepseek_api_key';
+var HISTORY_KEY = 'deepseek_balance_history';
+var CHECKPOINT_MINUTES = 5;
+var MAX_HISTORY_DAYS = 90;
 
-// ── Peak hour helpers ────────────────
-// DeepSeek peak hours: 00:30-08:30 Beijing time (UTC+8)
-const PEAK_START_H = 0, PEAK_START_M = 30;   // 00:30
-const PEAK_END_H = 8, PEAK_END_M = 30;       // 08:30
+var $main = document.getElementById('mainContent');
+var $overlay = document.getElementById('settingsOverlay');
+var $apiKeyInput = document.getElementById('apiKeyInput');
+var $toast = document.getElementById('toast');
+var $btnRefresh = document.getElementById('btnRefresh');
 
+var apiKey = localStorage.getItem(STORAGE_KEY) || '';
+var countdown = REFRESH_INTERVAL;
+var timerInterval = null;
+var data = null;
+var loading = false;
+
+var chartTrend = null;
+var chartHourly = null;
+var chartDaily = null;
+var chartMonthly = null;
+var trendRange = '24h';
+
+// ── Peak Hour Constants ──────────────────
+// Source: DeepSeek official announcement June 2026
+// Peak pricing effective mid-July 2026
+// Two daily blocks: 09:00-12:00 and 14:00-18:00 (UTC+8)
+var PEAK_BLOCKS = [
+    { name: 'morning', startMin: 540, endMin: 720,  label: '早高峰', time: '09:00-12:00', icon: '🌅' },
+    { name: 'afternoon', startMin: 840, endMin: 1080, label: '晚高峰', time: '14:00-18:00', icon: '☀️' }
+];
+var PEAK_SOON_THRESHOLD = 60; // minutes — warn when peak starts within 1 hour
+
+// ── Toast ────────────────────────────────
+var toastTimer;
+function showToast(msg) {
+    clearTimeout(toastTimer);
+    $toast.textContent = msg;
+    $toast.classList.add('show');
+    toastTimer = setTimeout(function() { $toast.classList.remove('show'); }, 2200);
+}
+
+// ── History Persistence ──────────────────
+function loadHistory() {
+    try {
+        var raw = localStorage.getItem(HISTORY_KEY);
+        var arr = raw ? JSON.parse(raw) : [];
+        // Validate entries
+        if (!Array.isArray(arr)) return [];
+        return arr.filter(function(h) { return typeof h.t === 'number' && typeof h.v === 'number'; });
+    } catch(e) { return []; }
+}
+
+function saveHistory(arr) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+
+// ── Currency Selection ───────────────────
+function selectBalanceInfo(balanceData) {
+    var infos = balanceData.balance_infos;
+    if (!infos || infos.length === 0) return null;
+    for (var i = 0; i < infos.length; i++) {
+        if (infos[i].currency === 'CNY') return infos[i];
+    }
+    return infos[0];
+}
+
+// ── Beijing Time Helpers ─────────────────
 function getBeijingTime(date) {
-    // Get Beijing time components from any Date object
-    // UTC+8 offset in ms
     var utc = date.getTime() + date.getTimezoneOffset() * 60000;
     return new Date(utc + 8 * 3600000);
 }
 
+// ── Peak Detection ───────────────────────
 function isPeakHour(date) {
     var bj = getBeijingTime(date || new Date());
-    var h = bj.getHours(), m = bj.getMinutes();
-    var mins = h * 60 + m;
-    var startMins = PEAK_START_H * 60 + PEAK_START_M;
-    var endMins = PEAK_END_H * 60 + PEAK_END_M;
-    return mins >= startMins && mins < endMins;
+    var mins = bj.getHours() * 60 + bj.getMinutes();
+    for (var i = 0; i < PEAK_BLOCKS.length; i++) {
+        if (mins >= PEAK_BLOCKS[i].startMin && mins < PEAK_BLOCKS[i].endMin) return true;
+    }
+    return false;
+}
+
+function isTimestampPeak(ts) {
+    return isPeakHour(new Date(ts));
+}
+
+// Returns which peak block a given time falls in, or null
+function getActivePeakBlock(date) {
+    var bj = getBeijingTime(date || new Date());
+    var mins = bj.getHours() * 60 + bj.getMinutes();
+    for (var i = 0; i < PEAK_BLOCKS.length; i++) {
+        if (mins >= PEAK_BLOCKS[i].startMin && mins < PEAK_BLOCKS[i].endMin) return PEAK_BLOCKS[i];
+    }
+    return null;
 }
 
 function getPeakInfo() {
-    // Returns { isPeak, nextLabel, countdown, status }
     var bj = getBeijingTime(new Date());
-    var h = bj.getHours(), m = bj.getMinutes();
-    var mins = h * 60 + m;
-    var startMins = PEAK_START_H * 60 + PEAK_START_M;   // 30
-    var endMins = PEAK_END_H * 60 + PEAK_END_M;           // 510
+    var mins = bj.getHours() * 60 + bj.getMinutes();
 
-    var info = {};
+    // Check if currently in a peak block
+    var activeBlock = getActivePeakBlock(new Date());
 
-    if (mins >= startMins && mins < endMins) {
+    if (activeBlock) {
         // Currently in peak
-        info.isPeak = true;
-        info.status = 'on';
-        info.title = '🔥 当前为高峰时段';
-        info.sub = 'DeepSeek API 费率翻倍（2×），请注意控制用量';
-        var remaining = endMins - mins; // minutes until peak ends
-        info.nextLabel = '高峰结束';
-        info.countdown = remaining;
-    } else {
-        info.isPeak = false;
-        var untilStart;
-        if (mins >= endMins) {
-            // After peak today, next peak is tomorrow 00:30
-            untilStart = (24 * 60 - mins) + startMins;
-        } else {
-            // Before peak today
-            untilStart = startMins - mins;
-        }
-        info.countdown = untilStart;
-        if (untilStart <= 60) {
-            // Within 1 hour of peak starting
-            info.status = 'soon';
-            info.title = '⚠️ 高峰时段即将到来';
-            info.sub = '建议暂缓大量调用，费率将在 ' + formatCountdown(untilStart) + ' 后翻倍';
-            info.nextLabel = '高峰开始';
-        } else {
-            info.status = 'off';
-            info.title = '🟢 当前为非高峰时段';
-            info.sub = '费率正常，高峰时段 00:30-08:30';
-            info.nextLabel = '距高峰';
+        var remaining = activeBlock.endMin - mins;
+        return {
+            isPeak: true, status: 'on', segment: activeBlock.name,
+            title: '🔥 ' + activeBlock.label + '进行中 (' + activeBlock.time + ')',
+            sub: 'DeepSeek API 费率翻倍（2×），请注意控制用量',
+            nextLabel: activeBlock.label + '距结束',
+            countdown: remaining,
+            blockTotal: activeBlock.endMin - activeBlock.startMin,
+            blockElapsed: activeBlock.endMin - remaining - activeBlock.startMin
+        };
+    }
+
+    // Not in peak — find the next peak start
+    var nextBlock = null;
+    var untilStart = Infinity;
+
+    for (var i = 0; i < PEAK_BLOCKS.length; i++) {
+        if (mins < PEAK_BLOCKS[i].startMin) {
+            // This block hasn't started yet today
+            untilStart = PEAK_BLOCKS[i].startMin - mins;
+            nextBlock = PEAK_BLOCKS[i];
+            break;
         }
     }
-    return info;
+
+    if (!nextBlock) {
+        // All peaks passed today — next is tomorrow's first block
+        nextBlock = PEAK_BLOCKS[0];
+        untilStart = (1440 - mins) + nextBlock.startMin;
+    }
+
+    var isSoon = untilStart <= PEAK_SOON_THRESHOLD;
+
+    if (isSoon) {
+        return {
+            isPeak: false, status: 'soon', segment: null,
+            title: '⚠️ ' + nextBlock.label + '即将开始 (' + nextBlock.time + ')',
+            sub: '距' + nextBlock.label + '还有 ' + formatCountdown(untilStart) + '，费率即将翻倍',
+            nextLabel: nextBlock.label + '距开始',
+            countdown: untilStart,
+            blockTotal: nextBlock.endMin - nextBlock.startMin,
+            blockElapsed: 0
+        };
+    }
+
+    // Off-peak (far from next peak)
+    var dayLabel = nextBlock === PEAK_BLOCKS[0] && mins > PEAK_BLOCKS[PEAK_BLOCKS.length - 1].endMin ? '明日' : '';
+    return {
+        isPeak: false, status: 'off', segment: null,
+        title: '🟢 当前为非高峰时段',
+        sub: (mins > PEAK_BLOCKS[PEAK_BLOCKS.length - 1].endMin
+            ? '今日高峰已结束 · 明日早高峰 09:00-12:00'
+            : '高峰时段 09:00-12:00 / 14:00-18:00（费率 2×）'),
+        nextLabel: '距' + dayLabel + nextBlock.label,
+        countdown: untilStart,
+        blockTotal: 0,
+        blockElapsed: 0
+    };
 }
 
 function formatCountdown(totalMinutes) {
@@ -351,53 +566,11 @@ function formatCountdown(totalMinutes) {
     return m + '分钟';
 }
 
-function isTimestampPeak(ts) {
-    return isPeakHour(new Date(ts));
-}
-
-const $main = document.getElementById('mainContent');
-const $overlay = document.getElementById('settingsOverlay');
-const $apiKeyInput = document.getElementById('apiKeyInput');
-const $toast = document.getElementById('toast');
-
-let apiKey = localStorage.getItem(STORAGE_KEY) || '';
-let countdown = REFRESH_INTERVAL;
-let timerInterval = null;
-let data = null;
-let loading = false;
-
-// ── Chart instances (reused across renders) ──
-let chartTrend = null;
-let chartHourly = null;
-let chartDaily = null;
-let chartMonthly = null;
-let trendRange = '24h'; // '24h' | '7d' | '30d'
-
-// ── Toast ────────────────────────────
-let toastTimer;
-function showToast(msg) {
-    clearTimeout(toastTimer);
-    $toast.textContent = msg;
-    $toast.classList.add('show');
-    toastTimer = setTimeout(function() { $toast.classList.remove('show'); }, 2000);
-}
-
-// ── History persistence ──────────────
-function loadHistory() {
-    try {
-        var raw = localStorage.getItem(HISTORY_KEY);
-        return raw ? JSON.parse(raw) : [];
-    } catch(e) { return []; }
-}
-
-function saveHistory(arr) {
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); } catch(e) {}
-}
-
-// Record a data point if the checkpoint interval has passed
+// ── Record Checkpoint ────────────────────
 function recordCheckpoint(balanceData) {
-    var info = (balanceData.balance_infos && balanceData.balance_infos.length > 0) ? balanceData.balance_infos[0] : null;
+    var info = selectBalanceInfo(balanceData);
     if (!info) return;
+
     var total = parseFloat(info.total_balance);
     if (isNaN(total)) return;
 
@@ -405,22 +578,35 @@ function recordCheckpoint(balanceData) {
     var now = Date.now();
     var intervalMs = CHECKPOINT_MINUTES * 60 * 1000;
 
-    // Only record if enough time has passed since last checkpoint
+    // Gate: prevent duplicate within 5 min
     if (history.length > 0) {
         var last = history[history.length - 1];
         if (now - last.t < intervalMs) return;
     }
 
-    history.push({ t: now, v: total, g: parseFloat(info.granted_balance) || 0, p: parseFloat(info.topped_up_balance) || 0 });
+    // Cross-tab guard: re-read after a short delay to avoid race
+    // Simple approach: just push — worst case is a near-duplicate
 
-    // Purge old data (> MAX_HISTORY_DAYS)
+    history.push({
+        t: now,
+        v: Math.round(total * 100) / 100,
+        g: Math.round((parseFloat(info.granted_balance) || 0) * 100) / 100,
+        p: Math.round((parseFloat(info.topped_up_balance) || 0) * 100) / 100
+    });
+
+    // Purge old data — use splice instead of while+shift for performance
     var cutoff = now - MAX_HISTORY_DAYS * 24 * 3600 * 1000;
-    while (history.length > 0 && history[0].t < cutoff) history.shift();
+    var purgeIdx = 0;
+    while (purgeIdx < history.length && history[purgeIdx].t < cutoff) purgeIdx++;
+    if (purgeIdx > 0) history.splice(0, purgeIdx);
+
+    // Trim to max safe size (~30k entries)
+    if (history.length > 30000) history.splice(0, history.length - 30000);
 
     saveHistory(history);
 }
 
-// ── Cost calculation ─────────────────
+// ── Cost Calculation ─────────────────────
 function calcCosts(history) {
     var now = new Date();
     var thisHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).getTime();
@@ -429,70 +615,93 @@ function calcCosts(history) {
 
     var costHour = 0, costDay = 0, costMonth = 0;
     var peakHour = 0, peakDay = 0, peakMonth = 0;
-    var lastVal = null;
+    var lastTopped = null;
 
     for (var i = 0; i < history.length; i++) {
         var h = history[i];
-        if (lastVal !== null) {
-            var drop = lastVal - h.v;
-            if (drop > 0) {
+
+        if (lastTopped !== null) {
+            var toppedDrop = lastTopped - h.p;
+
+            // Only count topped-up balance decreases as real spending
+            // (granted balance expiration is NOT spending)
+            if (toppedDrop > 0.001) { // small epsilon for float safety
+                toppedDrop = Math.round(toppedDrop * 100) / 100;
                 var isPeak = isTimestampPeak(h.t);
-                if (h.t >= thisHourStart) { costHour += drop; if (isPeak) peakHour += drop; }
-                if (h.t >= todayStart) { costDay += drop; if (isPeak) peakDay += drop; }
-                if (h.t >= thisMonthStart) { costMonth += drop; if (isPeak) peakMonth += drop; }
+
+                if (h.t >= thisHourStart) {
+                    costHour = Math.round((costHour + toppedDrop) * 100) / 100;
+                    if (isPeak) peakHour = Math.round((peakHour + toppedDrop) * 100) / 100;
+                }
+                if (h.t >= todayStart) {
+                    costDay = Math.round((costDay + toppedDrop) * 100) / 100;
+                    if (isPeak) peakDay = Math.round((peakDay + toppedDrop) * 100) / 100;
+                }
+                if (h.t >= thisMonthStart) {
+                    costMonth = Math.round((costMonth + toppedDrop) * 100) / 100;
+                    if (isPeak) peakMonth = Math.round((peakMonth + toppedDrop) * 100) / 100;
+                }
+            }
+
+            // Detect top-up: topped-up balance increased → reset baseline
+            if (h.p > lastTopped + 0.001) {
+                lastTopped = h.p;
+                continue;
             }
         }
-        // Reset baseline if balance increased (top-up)
-        if (lastVal !== null && h.v > lastVal) { lastVal = h.v; continue; }
-        lastVal = h.v;
+
+        lastTopped = h.p;
     }
-    return { hour: costHour, day: costDay, month: costMonth, peakHour: peakHour, peakDay: peakDay, peakMonth: peakMonth };
+
+    return {
+        hour: costHour, day: costDay, month: costMonth,
+        peakHour: peakHour, peakDay: peakDay, peakMonth: peakMonth
+    };
 }
 
-// ── Chart builders ───────────────────
+// ── Chart Builders ───────────────────────
+function pad(n) { return String(n).padStart(2, '0'); }
+
 function getTrendData(history, range) {
     var now = Date.now();
     var cutoffs = { '24h': now - 86400000, '7d': now - 604800000, '30d': now - 2592000000 };
     var cutoff = cutoffs[range] || cutoffs['24h'];
-    var filtered = history.filter(function(h) { return h.t >= cutoff; });
     var labels = [], values = [];
-    for (var i = 0; i < filtered.length; i++) {
-        var d = new Date(filtered[i].t);
+    for (var i = 0; i < history.length; i++) {
+        var h = history[i];
+        if (h.t < cutoff) continue;
+        var d = new Date(h.t);
         if (range === '24h') labels.push(pad(d.getHours()) + ':' + pad(d.getMinutes()));
-        else if (range === '7d') labels.push((d.getMonth() + 1) + '/' + d.getDate());
         else labels.push((d.getMonth() + 1) + '/' + d.getDate());
-        values.push(filtered[i].v);
+        values.push(h.v);
     }
     return { labels: labels, values: values };
 }
 
 function getBarData(history, groupBy) {
-    // groupBy: 'hour' | 'day' | 'month'
-    var now = Date.now();
     var groups = {};
-    var lastVal = null, lastT = 0;
+    var lastTopped = null;
 
     for (var i = 0; i < history.length; i++) {
         var h = history[i];
-        if (lastVal !== null) {
-            var drop = lastVal - h.v;
-            if (drop > 0) {
-                var key;
-                var d = new Date(h.t);
+        if (lastTopped !== null) {
+            var drop = lastTopped - h.p;
+            if (drop > 0.001) {
+                drop = Math.round(drop * 100) / 100;
+                var key, d = new Date(h.t);
                 if (groupBy === 'hour') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours());
                 else if (groupBy === 'day') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
                 else key = d.getFullYear() + '-' + pad(d.getMonth()+1);
-                groups[key] = (groups[key] || 0) + drop;
+                groups[key] = Math.round(((groups[key] || 0) + drop) * 100) / 100;
             }
         }
-        if (lastVal === null || h.v <= lastVal) { lastVal = h.v; lastT = h.t; }
-        else { lastVal = h.v; } // top-up: reset baseline
+        if (lastTopped === null || h.p <= lastTopped) { lastTopped = h.p; }
+        else { lastTopped = h.p; } // top-up detected, reset
     }
 
     var keys = Object.keys(groups).sort();
     var labels, values;
 
-    // Limit display range
     if (groupBy === 'hour') {
         keys = keys.slice(-24);
         labels = keys.map(function(k) { var parts = k.split(' '); return parts[1] ? parts[1] + ':00' : k; });
@@ -519,7 +728,7 @@ function renderCharts(history) {
     destroyCharts();
     if (history.length < 2) return;
 
-    // ── Trend line chart ──────────────
+    // Trend line
     var td = getTrendData(history, trendRange);
     var ctxT = document.getElementById('chartTrend');
     if (ctxT) {
@@ -530,28 +739,25 @@ function renderCharts(history) {
                 datasets: [{
                     label: '余额',
                     data: td.values,
-                    borderColor: '#4f8cff',
-                    backgroundColor: 'rgba(79,140,255,0.08)',
-                    fill: true,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHitRadius: 8,
-                    tension: 0.3
+                    borderColor: '#5b8def',
+                    backgroundColor: 'rgba(91,141,239,0.06)',
+                    fill: true, borderWidth: 2, pointRadius: 0,
+                    pointHitRadius: 8, tension: 0.35
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { color: '#8b949e', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: '#21262d' } },
-                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                    x: { ticks: { color: '#5c6778', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: '#1a1f28' } },
+                    y: { ticks: { color: '#5c6778', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#1a1f28' } }
                 },
                 interaction: { intersect: false, mode: 'index' }
             }
         });
     }
 
-    // ── Hourly bar chart ──────────────
+    // Hourly bars
     var hd = getBarData(history, 'hour');
     var ctxH = document.getElementById('chartHourly');
     if (ctxH && hd.labels.length > 0) {
@@ -559,20 +765,20 @@ function renderCharts(history) {
             type: 'bar',
             data: {
                 labels: hd.labels,
-                datasets: [{ data: hd.values, backgroundColor: 'rgba(79,140,255,0.6)', borderRadius: 4 }]
+                datasets: [{ data: hd.values, backgroundColor: 'rgba(91,141,239,0.5)', borderRadius: 5, borderSkipped: false }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 12 }, grid: { display: false } },
-                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                    x: { ticks: { color: '#5c6778', font: { size: 9 }, maxTicksLimit: 12 }, grid: { display: false } },
+                    y: { ticks: { color: '#5c6778', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#1a1f28' } }
                 }
             }
         });
     }
 
-    // ── Daily bar chart ───────────────
+    // Daily bars
     var dd = getBarData(history, 'day');
     var ctxD = document.getElementById('chartDaily');
     if (ctxD && dd.labels.length > 0) {
@@ -580,20 +786,20 @@ function renderCharts(history) {
             type: 'bar',
             data: {
                 labels: dd.labels,
-                datasets: [{ data: dd.values, backgroundColor: 'rgba(63,185,80,0.6)', borderRadius: 4 }]
+                datasets: [{ data: dd.values, backgroundColor: 'rgba(52,211,153,0.5)', borderRadius: 5, borderSkipped: false }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } },
-                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                    x: { ticks: { color: '#5c6778', font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: '#5c6778', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#1a1f28' } }
                 }
             }
         });
     }
 
-    // ── Monthly bar chart ─────────────
+    // Monthly bars
     var md = getBarData(history, 'month');
     var ctxM = document.getElementById('chartMonthly');
     if (ctxM && md.labels.length > 0) {
@@ -601,40 +807,53 @@ function renderCharts(history) {
             type: 'bar',
             data: {
                 labels: md.labels,
-                datasets: [{ data: md.values, backgroundColor: 'rgba(210,153,29,0.6)', borderRadius: 4 }]
+                datasets: [{ data: md.values, backgroundColor: 'rgba(251,191,36,0.5)', borderRadius: 5, borderSkipped: false }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } },
-                    y: { ticks: { color: '#8b949e', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#21262d' } }
+                    x: { ticks: { color: '#5c6778', font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: '#5c6778', font: { size: 10 }, callback: function(v) { return '¥' + v.toFixed(2); } }, grid: { color: '#1a1f28' } }
                 }
             }
         });
     }
 }
 
+// ── Render Helpers ───────────────────────
 function renderPeakBannerHTML() {
     var info = getPeakInfo();
     var cdn = formatCountdown(info.countdown);
+
+    var icon = info.status === 'on' ? '🔴' : info.status === 'soon' ? '🟡' : '🟢';
+
+    var pct = 0;
+    if (info.blockTotal > 0) {
+        pct = Math.round((info.blockElapsed / info.blockTotal) * 100);
+    }
+
+    var progressBar = '';
+    if (info.status === 'on') {
+        progressBar = '<div class="peak-progress-bar"><div class="peak-progress-fill" style="width:' + pct + '%;"></div></div>';
+    }
+
     return '<div class="peak-banner peak-' + info.status + '">' +
-        '<div class="peak-banner-icon">' + (info.status === 'on' ? '🔴' : info.status === 'soon' ? '🟡' : '🟢') + '</div>' +
+        '<div class="peak-banner-icon">' + icon + '</div>' +
         '<div class="peak-banner-body">' +
         '<div class="peak-banner-title">' + info.title + '</div>' +
         '<div class="peak-banner-sub">' + info.sub + ' · <span class="peak-banner-countdown">' + cdn + '</span></div>' +
+        progressBar +
         '</div></div>';
 }
 
 function renderStatsHTML(history) {
     var costs = calcCosts(history);
     var hasData = history.length >= 2;
-    var peakInfo = getPeakInfo();
 
     function peakTag(peakAmt) {
-        if (!hasData || peakAmt <= 0) return '';
-        var cls = peakInfo.isPeak ? 'on' : 'off';
-        return '<span class="cost-peak-tag ' + cls + '">峰值 ¥' + peakAmt.toFixed(2) + '</span>';
+        if (!hasData || peakAmt <= 0.001) return '';
+        return '<span class="cost-peak-tag">峰值 ¥' + peakAmt.toFixed(2) + '</span>';
     }
 
     return '<div class="stats-divider"><span>📊 费用统计</span></div>' +
@@ -643,10 +862,11 @@ function renderStatsHTML(history) {
         '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.day.toFixed(2) : '--') + '</div><div class="cost-label">今天花费' + peakTag(costs.peakDay) + '</div></div>' +
         '<div class="cost-card"><div class="cost-amount">¥' + (hasData ? costs.month.toFixed(2) : '--') + '</div><div class="cost-label">本月花费' + peakTag(costs.peakMonth) + '</div></div>' +
         '</div>' +
+        '<div class="disclaimer-row">⚠️ 费用基于充值余额减少估算，以 <a href="https://platform.deepseek.com/usage" target="_blank">DeepSeek 官方用量页面</a> 为准</div>' +
 
         // Trend chart
-        '<div class="chart-container">' +
-        '<div class="chart-title">📈 余额变化趋势</div>' +
+        '<div class="chart-container" style="margin-top:12px;">' +
+        '<div class="chart-header"><span class="chart-header-icon">📈</span><span class="chart-header-title">余额变化趋势</span></div>' +
         '<div class="time-toggles">' +
         '<button class="time-toggle' + (trendRange === '24h' ? ' active' : '') + '" data-range="24h">24小时</button>' +
         '<button class="time-toggle' + (trendRange === '7d' ? ' active' : '') + '" data-range="7d">7天</button>' +
@@ -657,47 +877,52 @@ function renderStatsHTML(history) {
 
         // Hourly bar
         '<div class="chart-container">' +
-        '<div class="chart-title">📊 按小时费用</div>' +
+        '<div class="chart-header"><span class="chart-header-icon">🕐</span><span class="chart-header-title">按小时费用</span></div>' +
         (hasData ? '<div class="chart-wrap"><canvas id="chartHourly"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
         '</div>' +
 
         // Daily bar
         '<div class="chart-container">' +
-        '<div class="chart-title">📊 按天费用</div>' +
+        '<div class="chart-header"><span class="chart-header-icon">📅</span><span class="chart-header-title">按天费用</span></div>' +
         (hasData ? '<div class="chart-wrap"><canvas id="chartDaily"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
         '</div>' +
 
         // Monthly bar
         '<div class="chart-container">' +
-        '<div class="chart-title">📊 按月费用</div>' +
+        '<div class="chart-header"><span class="chart-header-icon">📆</span><span class="chart-header-title">按月费用</span></div>' +
         (hasData ? '<div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>' : '<div class="no-data-hint">数据收集中，请稍后…</div>') +
         '</div>';
 }
 
-// ── API fetch ────────────────────────
-async function fetchBalance() {
-    if (!apiKey) return null;
-    var resp = await fetch(API_URL, {
+// ── API Fetch ────────────────────────────
+function fetchBalance() {
+    if (!apiKey) return Promise.reject(new Error('no_key'));
+    return fetch(API_URL, {
         headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + apiKey }
+    }).then(function(resp) {
+        if (!resp.ok) {
+            return resp.text().then(function(body) {
+                var msg = '';
+                try { var j = JSON.parse(body); msg = j.error ? j.error.message || '' : ''; } catch(e) {}
+                var err = new Error(msg || 'HTTP ' + resp.status);
+                err.status = resp.status;
+                throw err;
+            });
+        }
+        return resp.json();
     });
-    if (!resp.ok) {
-        var body = await resp.text();
-        var msg = '';
-        try { var j = JSON.parse(body); msg = j.error ? j.error.message || '' : ''; } catch(e) {}
-        var err = new Error(msg || 'HTTP ' + resp.status);
-        err.status = resp.status;
-        throw err;
-    }
-    return resp.json();
 }
 
-// ── Render ───────────────────────────
+// ── Render ───────────────────────────────
 function renderLoading() {
-    $main.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div><p style="color:var(--text2);margin-top:12px;">正在查询余额…</p></div>';
+    $main.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div><p style="color:var(--text2);margin-top:14px;">正在查询余额…</p></div>';
 }
 
 function renderNoKey() {
-    $main.innerHTML = '<div class="empty-state"><div class="empty-icon">🔑</div><h2>设置 API Key</h2><p>请输入 DeepSeek API Key 查询余额。<br>在 <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--accent);">DeepSeek 控制台</a> 创建 Key。</p><button class="btn btn-primary" id="btnGoSettings" style="margin-top:8px;">⚙️ 设置 API Key</button></div>';
+    $main.innerHTML =
+        '<div class="empty-state"><div class="empty-icon">🔑</div><h2>设置 API Key</h2>' +
+        '<p>请输入 DeepSeek API Key 以查询余额。<br>在 <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek 控制台</a> 创建 Key。</p>' +
+        '<button class="btn btn-primary" id="btnGoSettings" style="margin-top:8px;">⚙️ 设置 API Key</button></div>';
     document.getElementById('btnGoSettings').addEventListener('click', function() {
         $overlay.classList.add('open'); $apiKeyInput.focus();
     });
@@ -712,9 +937,9 @@ function renderError(msg, status) {
         '<div class="err-body">' + esc(msg) + '</div>' +
         (isAuth ? '<button class="btn btn-primary" id="btnReSettings" style="margin-top:4px;font-size:12px;">⚙️ 重新设置 Key</button>' : '') +
         '</div>' +
-        '<div class="balance-card" style="opacity:0.4;">' +
-        '<div class="balance-label">总余额</div><div class="balance-amount" style="color:var(--text2);">--</div>' +
-        '<div class="balance-details"><div class="balance-detail-item"><div class="detail-label">🎁 赠送余额</div><div class="detail-value">--</div></div><div class="balance-detail-item"><div class="detail-label">💳 充值余额</div><div class="detail-value">--</div></div></div>' +
+        '<div class="balance-card" style="opacity:0.35;">' +
+        '<div class="balance-label">总余额</div><div class="balance-row"><div class="balance-amount" style="-webkit-text-fill-color:var(--text3);background:none;color:var(--text3);">--</div></div>' +
+        '<div class="balance-details"><div class="balance-detail-item"><div class="detail-icon">🎁</div><div class="detail-label">赠送余额</div><div class="detail-value" style="color:var(--text3);">--</div></div><div class="balance-detail-item"><div class="detail-icon">💳</div><div class="detail-label">充值余额</div><div class="detail-value" style="color:var(--text3);">--</div></div></div>' +
         '</div>' +
         '<div class="status-row">' +
         '<div class="status-card" id="cardRetry"><div class="status-icon">🔁</div><div class="status-value" style="font-size:15px;">重试</div><div class="status-label">点此重试</div></div>' +
@@ -730,42 +955,40 @@ function renderError(msg, status) {
 }
 
 function renderData(d) {
-    var info = (d.balance_infos && d.balance_infos.length > 0) ? d.balance_infos[0] : null;
+    var info = selectBalanceInfo(d);
     var total = info ? info.total_balance : null;
     var granted = info ? info.granted_balance : null;
     var toppedUp = info ? info.topped_up_balance : null;
     var currency = info ? info.currency : '';
 
-    var circ = 2 * Math.PI * 12;
+    var circ = 2 * Math.PI * 12.5;
     var pct = (countdown / REFRESH_INTERVAL) * 100;
     var offset = circ * (1 - pct / 100);
 
-    // Record history checkpoint
     recordCheckpoint(d);
     var history = loadHistory();
 
     $main.innerHTML =
         '<div class="balance-card">' +
         '<div class="balance-label">总余额</div>' +
-        '<div class="balance-amount"><span id="animTotal">' + fmt(total) + '</span><span class="balance-currency">' + currency + '</span></div>' +
+        '<div class="balance-row"><div class="balance-amount" id="animTotal">' + fmt(total) + '</div><span class="balance-currency">' + currency + '</span></div>' +
         '<div class="balance-details">' +
-        '<div class="balance-detail-item"><div class="detail-label">🎁 赠送余额</div><div class="detail-value">' + fmt(granted) + '</div></div>' +
-        '<div class="balance-detail-item"><div class="detail-label">💳 充值余额</div><div class="detail-value">' + fmt(toppedUp) + '</div></div>' +
+        '<div class="balance-detail-item"><div class="detail-icon">🎁</div><div class="detail-label">赠送余额</div><div class="detail-value">' + fmt(granted) + '</div></div>' +
+        '<div class="balance-detail-item"><div class="detail-icon">💳</div><div class="detail-label">充值余额</div><div class="detail-value">' + fmt(toppedUp) + '</div></div>' +
         '</div></div>' +
         renderPeakBannerHTML() +
         '<div class="status-row">' +
         '<div class="status-card"><div class="status-icon">' + (d.is_available ? '✅' : '🚫') + '</div><div class="status-value ' + (d.is_available ? 'status-available' : 'status-unavailable') + '">' + (d.is_available ? '可用' : '不可用') + '</div><div class="status-label">API 状态</div></div>' +
         '<div class="status-card" id="cardRefresh"><div class="status-icon">🔄</div><div class="status-value" id="countdownDisplay">' + countdown + 's</div><div class="status-label" id="lastUpdatedLabel">点击刷新</div></div>' +
         '</div>' +
-        '<div class="timer-section"><div class="timer-ring"><svg width="28" height="28" viewBox="0 0 28 28"><circle class="bg" cx="14" cy="14" r="12"/><circle class="progress" cx="14" cy="14" r="12" stroke-dasharray="' + circ + '" stroke-dashoffset="' + offset + '"/></svg></div><span class="timer-text">' + countdown + 's 后自动刷新</span></div>' +
+        '<div class="timer-section"><div class="timer-ring"><svg width="30" height="30" viewBox="0 0 30 30"><circle class="bg" cx="15" cy="15" r="12.5"/><circle class="progress" cx="15" cy="15" r="12.5" stroke-dasharray="' + circ.toFixed(2) + '" stroke-dashoffset="' + offset.toFixed(2) + '"/></svg></div><span class="timer-text">' + countdown + 's 后自动刷新</span></div>' +
         renderStatsHTML(history);
 
     document.getElementById('cardRefresh').addEventListener('click', refresh);
     updateTimestamp();
     if (total != null) animateTotal(parseFloat(total));
 
-    // Render charts after DOM is available
-    setTimeout(function() { renderCharts(history); }, 100);
+    setTimeout(function() { renderCharts(history); }, 150);
 
     // Time toggle events
     var toggles = document.querySelectorAll('.time-toggle');
@@ -773,11 +996,9 @@ function renderData(d) {
         toggles[i].addEventListener('click', function() {
             trendRange = this.getAttribute('data-range');
             var history2 = loadHistory();
-            // Update toggle active states
             var all = document.querySelectorAll('.time-toggle');
             for (var j = 0; j < all.length; j++) all[j].classList.remove('active');
             this.classList.add('active');
-            // Re-render trend chart only
             destroyCharts();
             renderCharts(history2);
         });
@@ -796,7 +1017,7 @@ function animateTotal(target) {
     if (isNaN(target)) return;
     var el = document.getElementById('animTotal');
     if (!el) return;
-    var duration = 600, start = 0, startTime = performance.now();
+    var duration = 500, start = 0, startTime = performance.now();
     function step(now) {
         var elapsed = now - startTime;
         var progress = Math.min(elapsed / duration, 1);
@@ -813,24 +1034,27 @@ function updateTimerDisplay() {
     var ring = document.querySelector('.timer-ring .progress');
     var timerText = document.querySelector('.timer-text');
     if (ring) {
-        var pct = (countdown / REFRESH_INTERVAL) * 100;
-        var circ = 2 * Math.PI * 12;
-        ring.setAttribute('stroke-dashoffset', circ * (1 - pct / 100));
+        var pct = Math.max(0, (countdown / REFRESH_INTERVAL) * 100);
+        var circ = 2 * Math.PI * 12.5;
+        ring.setAttribute('stroke-dashoffset', (circ * (1 - pct / 100)).toFixed(2));
     }
-    if (timerText) timerText.textContent = countdown + 's 后自动刷新';
+    if (timerText) timerText.textContent = Math.max(0, countdown) + 's 后自动刷新';
 }
 
+// ── Timer ────────────────────────────────
 function refresh() {
     if (loading) return;
     if (!apiKey) { renderNoKey(); return; }
     loading = true;
     countdown = REFRESH_INTERVAL;
     renderLoading();
+
     fetchBalance().then(function(d) {
         data = d;
         renderData(d);
         updateTimestamp();
     }).catch(function(e) {
+        if (e.message === 'no_key') { renderNoKey(); return; }
         data = null;
         destroyCharts();
         renderError(e.message, e.status);
@@ -845,11 +1069,18 @@ function resetTimer() {
     countdown = REFRESH_INTERVAL;
     timerInterval = setInterval(function() {
         countdown--;
+        // Guard against negative countdown from sleep/resume
+        if (countdown < -60) {
+            countdown = REFRESH_INTERVAL;
+            refresh();
+            return;
+        }
         updateTimerDisplay();
         if (countdown <= 0) refresh();
     }, 1000);
 }
 
+// ── Settings ─────────────────────────────
 function saveApiKey(key) {
     key = key.trim();
     apiKey = key;
@@ -878,15 +1109,14 @@ function fmt(val) {
     return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function pad(n) { return String(n).padStart(2, '0'); }
-
 function esc(str) {
     var div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
 
-document.getElementById('btnRefresh').addEventListener('click', refresh);
+// ── Event Bindings ───────────────────────
+$btnRefresh.addEventListener('click', refresh);
 document.getElementById('btnSettings').addEventListener('click', function() { $overlay.classList.add('open'); });
 document.getElementById('btnSaveKey').addEventListener('click', function() {
     var key = $apiKeyInput.value.trim();
@@ -906,6 +1136,7 @@ $apiKeyInput.addEventListener('keydown', function(e) {
     }
 });
 
+// ── Init ─────────────────────────────────
 if (apiKey) { refresh(); } else { renderNoKey(); }
 })();
 </script>
