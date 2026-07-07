@@ -466,6 +466,30 @@ function getBeijingTime(date) {
     return new Date(utc + 8 * 3600000);
 }
 
+// DeepSeek billing uses Beijing time (UTC+8). All date boundaries
+// (today, this hour, this month) must be computed in Beijing time,
+// not the device's local timezone. Otherwise "today" becomes a
+// rolling 24h window offset by the local UTC delta, not a calendar day.
+function getBeijingDateBoundaries() {
+    var bj = getBeijingTime(new Date());
+    // UTC midnight of the Beijing calendar date
+    var utcMidnight = Date.UTC(bj.getFullYear(), bj.getMonth(), bj.getDate(), 0, 0, 0);
+    // Beijing = UTC+8, so Beijing midnight = UTC midnight - 8h
+    return {
+        todayStart:    utcMidnight - 8 * 3600000,
+        thisHourStart: utcMidnight - 8 * 3600000 + bj.getHours() * 3600000,
+        thisMonthStart: Date.UTC(bj.getFullYear(), bj.getMonth(), 1, 0, 0, 0) - 8 * 3600000
+    };
+}
+
+// Get a grouping key for a Unix-ms timestamp using Beijing date
+function getBeijingDateKey(ts, groupBy) {
+    var bj = getBeijingTime(new Date(ts));
+    if (groupBy === 'hour')  return bj.getFullYear() + '-' + pad(bj.getMonth() + 1) + '-' + pad(bj.getDate()) + ' ' + pad(bj.getHours());
+    if (groupBy === 'day')   return bj.getFullYear() + '-' + pad(bj.getMonth() + 1) + '-' + pad(bj.getDate());
+    /* month */              return bj.getFullYear() + '-' + pad(bj.getMonth() + 1);
+}
+
 // ── Peak Detection ───────────────────────
 function isPeakHour(date) {
     var bj = getBeijingTime(date || new Date());
@@ -626,10 +650,10 @@ function recordCheckpoint(balanceData) {
 
 // ── Cost Calculation ─────────────────────
 function calcCosts(history) {
-    var now = new Date();
-    var thisHourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).getTime();
-    var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    var thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    var bj = getBeijingDateBoundaries();
+    var thisHourStart = bj.thisHourStart;
+    var todayStart = bj.todayStart;
+    var thisMonthStart = bj.thisMonthStart;
 
     var costHour = 0, costDay = 0, costMonth = 0;
     var peakHour = 0, peakDay = 0, peakMonth = 0;
@@ -695,7 +719,7 @@ function getTrendData(history, range) {
     for (var i = 0; i < history.length; i++) {
         var h = history[i];
         if (h.t < cutoff) continue;
-        var d = new Date(h.t);
+        var d = getBeijingTime(new Date(h.t));
         if (range === '24h') labels.push(pad(d.getHours()) + ':' + pad(d.getMinutes()));
         else labels.push((d.getMonth() + 1) + '/' + d.getDate());
         values.push(h.v);
@@ -717,10 +741,7 @@ function getBarData(history, groupBy) {
             var drop = lastTopped - h.p;
             if (drop > 0.001) {
                 drop = Math.round(drop * 100) / 100;
-                var key, d = new Date(h.t);
-                if (groupBy === 'hour') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours());
-                else if (groupBy === 'day') key = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
-                else key = d.getFullYear() + '-' + pad(d.getMonth()+1);
+                var key = getBeijingDateKey(h.t, groupBy);
                 groups[key] = Math.round(((groups[key] || 0) + drop) * 100) / 100;
             }
         }
@@ -1037,8 +1058,8 @@ function renderData(d) {
 function updateTimestamp() {
     var el = document.getElementById('lastUpdatedLabel');
     if (el) {
-        var now = new Date();
-        el.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()) + ' 更新';
+        var bj = getBeijingTime(new Date());
+        el.textContent = pad(bj.getHours()) + ':' + pad(bj.getMinutes()) + ':' + pad(bj.getSeconds()) + ' 更新';
     }
 }
 
